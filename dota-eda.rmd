@@ -112,14 +112,14 @@ We see that the test accuracy behaves similarly to the test set cv accuracy from
 # create winners transition matrix
 winners_tm <- train_set %>%
   filter(as.logical(radiant_win)) %>%
-  as_binned_matrix(nbin = 30) %>%
-  construct_transition_matrix(nbin = 30)
+  as_binned_matrix(nbin = 20) %>%
+  construct_transition_matrix(nbin = 20)
 
 # create losers transition matrix
 losers_tm <-  train_set %>%
   filter(!as.logical(radiant_win)) %>%
-  as_binned_matrix(nbin = 30) %>%
-  construct_transition_matrix(nbin = 30)
+  as_binned_matrix(nbin = 20) %>%
+  construct_transition_matrix(nbin = 20)
 
 # plot winners transition matrix
 winners_tm %>%
@@ -161,7 +161,6 @@ tsbm <- as_binned_matrix(test_set, nbin = 20)
 
 d_win <- get_traj_prob(tsbm, winners_tm, t = 34)
 d_los <- get_traj_prob(tsbm, losers_tm, t = 34)
-
 
 is_win <- (d_win / (d_win + d_los)) > 0.5
 
