@@ -30,3 +30,11 @@ construct_transition_matrix <- function (m, nbin = 20, time = 80) {
   
   freq / rowSums(freq)
 }
+
+reflect_losers <- function (df) {
+  df %>%
+    filter(!as.logical(radiant_win)) %>%
+    mutate_at(vars(matches("difference")), ~ifelse(is.na(.), ., . * -1)) %>%
+    mutate(radiant_win = as.factor(TRUE)) %>%
+    bind_rows(filter(df, as.logical(radiant_win)))
+}
