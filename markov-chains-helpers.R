@@ -19,14 +19,14 @@ as_binned_matrix <- function (df, nbin = 20) {
     data.matrix()
 }
 
-construct_transition_matrix <- function (m, nbin = 20, time = 60) {
+construct_transition_matrix <- function (m, nbin = 20, time = 80) {
   freq <- matrix(0, nbin, nbin)
-
+  t <- rowSums(0 + !is.na(m))
   for (i in 1:nrow(m)) {
-    for (j in 1:time - 1) {
+    for (j in 1:min(t[i], time) - 1) {
       freq[m[i, j], m[i, j + 1]] <- freq[m[i, j], m[i, j + 1]]  + 1
     }
   }
-
+  
   freq / rowSums(freq)
 }
