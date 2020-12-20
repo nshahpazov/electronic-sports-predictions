@@ -136,23 +136,39 @@ game_lengths <- sample(1:10, 5) # game lengths
 freq[cbind(m[,1], m[,2])] <- freq[cbind(m[,1], m[,2])] + 1
 freq[cbind(m[,2], m[,3])] <- freq[cbind(m[,2], m[,3])] + 1
 
+
+
+
 # this approach would not work, have to rewrite it in a better way
 
+
+# ANOTHER APPROACH
 # some standard moving through states
-m <- matrix(rep(1:5, 5), byrow = TRUE, nrow = 5, ncol = 5)
+m <- c(
+  1, 2, 1, 2, 3,
+  1, 2, 3, 4, 3,
+  1, 1, 2, 3, 3,
+  1, 2, 3, 2, 1,
+  1, 2, 2, 3, 4
+) %>%
+matrix(byrow = TRUE, ncol = 5)
+
 
 len <- 5 # lengths we are going to go to
 
+freq <- matrix(0, 5, 5)
 for (i in 1:nrow(m)) {
   for (j in 1:len - 1) {
-    freq[m[i, j], m[i, j + 1]] <- freq[m[i, j], m[i, j + 1]]  + 1 /  game_lengths[i]
+    freq[m[i, j], m[i, j + 1]] <- freq[m[i, j], m[i, j + 1]]  + 1
   }
 }
 
-freq <- freq / 5
+freq <- freq / rowSums(freq)
 
 colSums(freq)
 
+corrplot(cor(freq))
+corrplot::corrplot(freq)
 m[3, 1]
 freq
 ```
@@ -160,16 +176,13 @@ freq
 
 
 
-### Markov Chains Model (WIP, using matrix sub indexing is wrong)
+### Markov Chains Model (WIP)
 
 ```{r markov-chain-model}
 d <- train_set %>% filter(as.logical(radiant_win)) %>% as_binned_matrix() %>% 
   construct_transition_matrix() 
 
-train_set$duration
-
 train_set %>%
-  filter(as.logical(radiant_win)) %>%
   filter(as.logical(radiant_win)) %>%
   as_binned_matrix() %>%
   construct_transition_matrix() %>%

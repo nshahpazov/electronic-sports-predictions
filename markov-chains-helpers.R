@@ -20,15 +20,13 @@ as_binned_matrix <- function (df, nbin = 20) {
 }
 
 construct_transition_matrix <- function (m, nbin = 20, time = 60) {
-  game_lengths <- rowSums(0 + !is.na(m))
-
   freq <- matrix(0, nbin, nbin)
 
-  for (i in 1:time) {
-    t <- game_lengths[i]
-    msk <- !is.na(m[, i + 1])
-    idx <- cbind(m[msk, i], m[msk, i + 1])
-    freq[idx] <- freq[idx] + 1 / game_lengths[i]
+  for (i in 1:nrow(m)) {
+    for (j in 1:time - 1) {
+      freq[m[i, j], m[i, j + 1]] <- freq[m[i, j], m[i, j + 1]]  + 1
+    }
   }
-  freq
+
+  freq / rowSums(freq)
 }
