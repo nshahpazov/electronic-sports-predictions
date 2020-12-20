@@ -5,25 +5,7 @@ date: "12/3/2020"
 output: html_document
 ---
 
-```{r package-setup, echo = FALSE, results = 'hide', warning = FALSE, message = FALSE} 
 
-list.of.packages <- c( "tidyverse", "caret", "Metrics", "recipes",
-                       "ggplot2", "purrr", "reshape")
-
-new.packages <- list.of.packages[(!list.of.packages %in% installed.packages() |
-                                   list.of.packages %in% old.packages()[ ,"Package"])]
-
-if (length(new.packages)) {
-  install.packages(new.packages, repos = "http://cran.us.r-project.org")
-}
-
-## Load all necessary packages in RAM (working environment)
-lapply(list.of.packages, require, character.only = TRUE)
-
-## Setup working directory to the path of the source file location
-setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
-rm(list.of.packages,new.packages)
-```
 
 ```{r constants}
 WINDOW_COLS <- c("gold_difference", "xp_difference", "lh_difference")
@@ -43,7 +25,7 @@ time_df <- read.csv('./data/player_time.csv')
 
 ### Preprocessing
 
-```{r prepare-data echo = FALSE}
+```{r prepare-data}
 diffs_by_time_df <- time_df %>%
   mutate(gold_difference = diff_means(., "gold_t_[0-4]$", "gold_t_1[2-3]")) %>%
   mutate(xp_difference = diff_means(., "xp_t_[0-4]$", "xp_t_1[2-3]")) %>%
@@ -61,7 +43,7 @@ diffs_by_time_df <- time_df %>%
 
 ### Train set and Test set split
 
-```{r test-train-split echo = FALSE}
+```{r test-train-split}
 train_indices <- createDataPartition(diffs_by_time_df$radiant_win,
                                      p = .8,
                                      list = FALSE,
@@ -73,7 +55,7 @@ test_set <- diffs_by_time_df[-train_indices, ]
 
 ### Train various logistic regression models
 
-```{r train-time-windows-lr echo = FALSE}
+```{r train-time-windows-lr}
 tc <- trainControl(method = "cv", number = 5)
 
 train_set_std <- standardize_time_df(train_set)
@@ -106,7 +88,7 @@ We see that SLR with gold and last hits (gold is correlated with xp) behaves the
 80th minute and after that it starts oscillating a lot, probably because 
 there aren't a lot of matches then, or the matches are very even.
 
-```{r prediction-accuracies echo = FALSE}
+```{r prediction-accuracies}
 test_performance <- lr_models %>%
   imap(
     ~data.frame(
@@ -126,22 +108,22 @@ We see that the test accuracy behaves similarly to the test set cv accuracy from
 
 ### Markov Chains Model (WIP)
 
-```{r markov-chain-model}
-# create winners and losers transition matrices
+```{r markov-chain-model, message=FALSE, warning=FALSE, include=FALSE}
+# create winners transition matrix
 winners_tm <- train_set %>%
   filter(as.logical(radiant_win)) %>%
   as_binned_matrix(nbin = 30) %>%
-  construct_transition_matrix(nbin = 30) %>%
-  matrix_to_df()
+  construct_transition_matrix(nbin = 30)
 
-losers_tm <- train_set %>%
+# create losers transition matrix
+losers_tm <-  train_set %>%
   filter(!as.logical(radiant_win)) %>%
   as_binned_matrix(nbin = 30) %>%
-  construct_transition_matrix(nbin = 30) %>%
-  matrix_to_df()
+  construct_transition_matrix(nbin = 30)
 
-# plot the transition probablities for winners and losers
+# plot winners transition matrix
 winners_tm %>%
+  matrix_to_df() %>%
   ggplot(mapping = aes(row, col, fill = value)) + 
     geom_tile() +
     geom_text(aes(label = round(value, 1))) +
@@ -149,11 +131,43 @@ winners_tm %>%
     xlab("Gold Bin States") +
     ylab("Gold Bin States")
 
+# plot losers transition matrix
 losers_tm %>%
+  matrix_to_df() %>%
   ggplot(mapping = aes(row, col, fill = value)) + 
     geom_tile() +
     geom_text(aes(label = round(value, 1))) +
     ggtitle("Transition changes for the Losing team in the train set") +
     xlab("Gold Bin States") +
     ylab("Gold Bin States")
+```
+
+```{r markov-chains-model-predictions, include=FALSE}
+
+get_traj_prob <- function (bm, tm, t = 1, window = 5) {
+  probs <- c()
+  for (i in 1:nrow(bm)) {
+    prob <- 1
+    for (j in t:t + window - 1) {
+      current <- tm[ bm[i, j] ,bm[i , j + 1] ]
+      prob <- prob * ifelse(is.na(current), 1, current)
+    }
+    probs[i] <- prob
+  }
+  probs
+}
+
+tsbm <- as_binned_matrix(test_set, nbin = 20)
+
+d_win <- get_traj_prob(tsbm, winners_tm, t = 34)
+d_los <- get_traj_prob(tsbm, losers_tm, t = 34)
+
+
+is_win <- (d_win / (d_win + d_los)) > 0.5
+
+mean(0 + (is_win == test_set$radiant_win), na.rm = TRUE)
+# weak result
+
+tsbm %>% rownames()
+
 ```

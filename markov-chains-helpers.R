@@ -1,22 +1,22 @@
 get_bins <- function (df, nbin = 20) {
   max_gold <- df %>%
-    select(contains("gold_difference")) %>% 
+    select(contains("gold_difference")) %>%
     max(na.rm = TRUE) %>%
     max(na.rm = TRUE)
-  
+
   min_gold <- df %>%
-    select(contains("gold_difference")) %>% 
+    select(contains("gold_difference")) %>%
     min(na.rm = TRUE) %>%
     min(na.rm = TRUE)
-  
+
   bins <- seq(min_gold, max_gold, length.out = nbin + 1)
 }
 
-as_binned_matrix <- function (df, nbin = 20) {
+as_binned_matrix <- function (df, nbin = 20, field = "gold") {
   df %>%
-    select(contains("gold")) %>%
+    select(contains(field)) %>%
     mutate_all(~cut(., breaks = get_bins(df, nbin), labels = 1:nbin)) %>%
-    data.matrix()
+    data.matrix(rownames.force = TRUE)
 }
 
 construct_transition_matrix <- function (m, nbin = 20, time = 80) {
