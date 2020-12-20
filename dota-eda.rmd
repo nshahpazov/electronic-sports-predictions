@@ -39,6 +39,9 @@ source("markov-chains-helpers.R")
 matches_df <- read.csv("./data/match.csv",
                        colClasses = c(radiant_win = "logical"))
 time_df <- read.csv('./data/player_time.csv')
+
+time_df
+
 ```
 
 ### Preprocessing
@@ -49,13 +52,15 @@ diffs_by_time_df <- time_df %>%
   mutate(xp_difference = diff_means(., "xp_t_[0-4]$", "xp_t_1[2-3]")) %>%
   mutate(lh_difference = diff_means(., "lh_t_[0-4]$", "lh_t_1[2-3]")) %>%
   mutate(minute = times / 60) %>%
-  select(match_id, minute, gold_difference, xp_difference, lh_difference) %>% 
+  select(match_id, minute, gold_difference, xp_difference, lh_difference) %>%
   pivot_wider(id_cols = "match_id",
               names_from = "minute",
               values_from = WINDOW_COLS) %>%
-  select(-gold_difference_0, -xp_difference_0, -lh_difference_0) %>% 
-  left_join(select(matches_df, match_id, radiant_win), by = "match_id") %>%
+  select(-gold_difference_0, -xp_difference_0, -lh_difference_0) %>%
+  left_join(select(matches_df, match_id, radiant_win, duration),
+            by = "match_id") %>%
   mutate(radiant_win = as.factor(radiant_win))
+
 ```
 
 ### Train set and Test set split
@@ -68,7 +73,6 @@ train_indices <- createDataPartition(diffs_by_time_df$radiant_win,
 
 train_set <- diffs_by_time_df[train_indices, ]
 test_set <- diffs_by_time_df[-train_indices, ]
-
 ```
 
 ### Train various logistic regression models
@@ -124,11 +128,48 @@ test_performance %>%
 ```
 We see that the test accuracy behaves similarly to the test set cv accuracy from above.
 
+```{r frequency-generation-playground}
+m <- matrix(sample(1:5, 25, replace = TRUE), nrow = 5)
+freq <- matrix(0, 5, 5)
+game_lengths <- sample(1:10, 5) # game lengths
 
-### Markov Chains Model
+freq[cbind(m[,1], m[,2])] <- freq[cbind(m[,1], m[,2])] + 1
+freq[cbind(m[,2], m[,3])] <- freq[cbind(m[,2], m[,3])] + 1
+
+# this approach would not work, have to rewrite it in a better way
+
+# some standard moving through states
+m <- matrix(rep(1:5, 5), byrow = TRUE, nrow = 5, ncol = 5)
+
+len <- 5 # lengths we are going to go to
+
+for (i in 1:nrow(m)) {
+  for (j in 1:len - 1) {
+    freq[m[i, j], m[i, j + 1]] <- freq[m[i, j], m[i, j + 1]]  + 1 /  game_lengths[i]
+  }
+}
+
+freq <- freq / 5
+
+colSums(freq)
+
+m[3, 1]
+freq
+```
+
+
+
+
+### Markov Chains Model (WIP, using matrix sub indexing is wrong)
 
 ```{r markov-chain-model}
+d <- train_set %>% filter(as.logical(radiant_win)) %>% as_binned_matrix() %>% 
+  construct_transition_matrix() 
+
+train_set$duration
+
 train_set %>%
+  filter(as.logical(radiant_win)) %>%
   filter(as.logical(radiant_win)) %>%
   as_binned_matrix() %>%
   construct_transition_matrix() %>%
