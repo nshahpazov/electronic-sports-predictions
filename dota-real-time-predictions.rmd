@@ -5,7 +5,30 @@ date: "12/3/2020"
 output: html_document
 ---
 
+```{r package-setup, message=FALSE, warning=FALSE, include=FALSE, results='hide'}
+## Create the list of required packages
+list.of.packages <- c(
+  # utility libraries
+  "Metrics",
+  "reshape",
+  "tidyverse",
+  "caret",
+  "recipes",
+  "purrr"
+)
 
+new.packages <- list.of.packages[(!list.of.packages %in% installed.packages() |
+                                    list.of.packages %in% old.packages()[ ,"Package"])]
+
+if (length(new.packages)) {
+  install.packages(new.packages, repos = "http://cran.us.r-project.org")
+}
+
+## Load all necessary packages in RAM (working environment)
+lapply(list.of.packages, require, character.only = TRUE)
+
+rm(list.of.packages, new.packages)
+```
 
 ```{r constants}
 WINDOW_COLS <- c("gold_difference", "xp_difference", "lh_difference")
@@ -21,6 +44,8 @@ source("markov-chains-helpers.R")
 matches_df <- read.csv("./data/match.csv",
                        colClasses = c(radiant_win = "logical"))
 time_df <- read.csv('./data/player_time.csv')
+
+matches_df$duration[1:20] / 60
 ```
 
 ### Preprocessing
@@ -37,8 +62,9 @@ diffs_by_time_df <- time_df %>%
   select(-gold_difference_0, -xp_difference_0, -lh_difference_0) %>%
   left_join(select(matches_df, match_id, radiant_win, duration),
             by = "match_id") %>%
-  mutate(radiant_win = as.factor(radiant_win))
-
+  mutate(radiant_win = as.factor(radiant_win)) %>%
+  # drop outliers
+  filter(duration / 60 <= 101)
 ```
 
 ### Train set and Test set split
@@ -55,19 +81,19 @@ test_set <- diffs_by_time_df[-train_indices, ]
 
 ### Train various logistic regression models
 
-```{r train-time-windows-lr}
-tc <- trainControl(method = "cv", number = 5)
+```{r train-time-windows-lr, include=FALSE}
+tc <- trainControl(method = "cv", number = 3)
 
 train_set_std <- standardize_time_df(train_set)
 test_set_std <- standardize_time_df(test_set)
 
 # slr_all <- train_lr(data = train_set_std, cols = WINDOW_COLS, control = tc)
-slr_gld <- train_lr(data = train_set_std, cols = WINDOW_COLS[1], control = tc)
+# slr_gld <- train_lr(data = train_set_std, cols = WINDOW_COLS[1], control = tc)
 slr_glh <- train_lr(data = train_set_std, cols = WINDOW_COLS[-2], control = tc)
 
 lr_models <- list(
   # "slr_all" = slr_all,
-  "slr_gld" = slr_gld,
+  # "slr_gld" = slr_gld,
   "slr_glh" = slr_glh
 )
 ```
@@ -92,8 +118,8 @@ there aren't a lot of matches then, or the matches are very even.
 test_performance <- lr_models %>%
   imap(
     ~data.frame(
-      accuracy = get_test_accuracies(., test_set_std),
-      time = 5:95,
+      accuracy = get_test_accuracies(., test_set_std, interval = 1:20),
+      time = 1:20,
       model = .y
     )
   ) %>%
@@ -106,20 +132,23 @@ test_performance %>%
 ```
 We see that the test accuracy behaves similarly to the test set cv accuracy from above.
 
-### Markov Chains Model (WIP)
+### Markov Chains Model
 
-```{r markov-chain-model, message=FALSE, warning=FALSE, include=FALSE}
+```{r markov-chain-model, message=FALSE, warning=FALSE}
 # create winners transition matrix
+NBIN <- 8
 winners_tm <- train_set %>%
+  # reflect() %>% 
   filter(as.logical(radiant_win)) %>%
-  as_binned_matrix(nbin = 20) %>%
-  construct_transition_matrix(nbin = 20)
+  as_binned_matrix(nbin = NBIN) %>%
+  construct_transition_matrix(nbin = NBIN)
 
 # create losers transition matrix
 losers_tm <-  train_set %>%
+  # reflect(TRUE) %>% 
   filter(!as.logical(radiant_win)) %>%
-  as_binned_matrix(nbin = 20) %>%
-  construct_transition_matrix(nbin = 20)
+  as_binned_matrix(nbin = NBIN) %>%
+  construct_transition_matrix(nbin = NBIN)
 
 # plot winners transition matrix
 winners_tm %>%
@@ -142,31 +171,44 @@ losers_tm %>%
     ylab("Gold Bin States")
 ```
 
-```{r markov-chains-model-predictions, include=FALSE}
+```{r markov-chains-model-predictions, echo=FALSE}
+# TODO: use the faster method of updating and accessing transition probabilities
+# TODO: add prediction for the duration (discretized)
+# TODO: add decision tree model to see the accuracy
+# TODO: use the predicted probability as a predictor for the logistic regression
+# TODO: make pca of gold and last hits
+# TODO: add benchmark model with just the difference of gold \ last hits
+# TODO: test markov chain model with different types of discretization
 
-get_traj_prob <- function (bm, tm, t = 1, window = 5) {
-  probs <- c()
-  for (i in 1:nrow(bm)) {
-    prob <- 1
-    for (j in t:t + window - 1) {
-      current <- tm[ bm[i, j] ,bm[i , j + 1] ]
-      prob <- prob * ifelse(is.na(current), 1, current)
-    }
-    probs[i] <- prob
-  }
-  probs
-}
+tsbm <- as_binned_matrix(test_set, nbin = NBIN)
 
-tsbm <- as_binned_matrix(test_set, nbin = 20)
+mc_accuracies <- imap(1:80, ~mc_accuracy(tsbm, winners_tm, losers_tm, .))
 
-d_win <- get_traj_prob(tsbm, winners_tm, t = 34)
-d_los <- get_traj_prob(tsbm, losers_tm, t = 34)
+bind_rows(
+  test_performance[1:80, ],
+  data.frame(
+    accuracy = unlist(imap(1:80, ~acc(tsbm, winners_tm, losers_tm, .))),
+    time = 1:80,
+    model = "MC"
+  )
+) %>% 
+ggplot(mapping = aes(x = time, y = accuracy, color = model)) +
+geom_line() +
+ggtitle("Test Set Accuracy")
 
-is_win <- (d_win / (d_win + d_los)) > 0.5
-
-mean(0 + (is_win == test_set$radiant_win), na.rm = TRUE)
-# weak result
-
-tsbm %>% rownames()
-
+# rows <- c(1, 2, 3, 4, 1)
+# cols <- c(4, 2, 5, 1, 4)
+# freq <- matrix(0, 5, 5)
+# 
+# out <- aggregate(val ~ rows + cols, cbind(rows, cols, val = 1), sum)
+# freq[as.matrix(out[1:2])] <- out$val
+# 
+# freq[cbind(indices[,1], indices[,2])] <- freq[cbind(m[,1], m[,2])] + 1
 ```
+```
+We tried segmenting the markov chain models into different categories. When predicting
+for a minute we use a model for which is trained on games longer than that minute
+This didn't improve anything, probably because the gold transition changing is more
+important in early stages of the game.
+
+Tried different quantile bins for the gold states and seems that 8 gives better results than 10

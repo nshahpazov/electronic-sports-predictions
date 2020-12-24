@@ -29,7 +29,6 @@ train_lr <- function (data,
                       cols = WINDOW_COLS) {
   
   
-
   map(interval, ~cols_window(. + (1:window_length), cols)) %>%
   map(~as.formula(paste("radiant_win~", paste(., collapse = "+")))) %>%
   map(~train(form = .,
@@ -62,7 +61,7 @@ train_dt <- function (data,
 
 get_test_accuracies <- function (model,
                                  data,
-                                 interval = 0:90,
+                                 interval = 0:101,
                                  cols = WINDOW_COLS) {
 
   columns <- imap(0:90, ~cols_window(. + (1:5), ))
