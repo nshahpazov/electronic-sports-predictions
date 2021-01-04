@@ -1,15 +1,15 @@
-get_bins <- function (df, nbin = 20) {
+get_bins <- function (df, nbin = 20, feature = "gold_difference") {
   df %>%
-    select(contains("gold_difference")) %>%
+    select(contains(feature)) %>%
     as.matrix() %>%
     c() %>%
     quantile(na.rm = TRUE, probs = seq(0, 1, 1 / nbin))
 }
 
-as_binned_matrix <- function (df, nbin = 20, field = "gold") {
-  bins <- get_bins(df, nbin)
+as_binned_matrix <- function (df, nbin = 20, feature = "gold_difference") {
+  bins <- get_bins(df, nbin, feature)
   df %>%
-    select(contains(field)) %>%
+    select(contains(feature)) %>%
     mutate_all(~cut(., breaks = bins, labels = 1:nbin)) %>%
     data.matrix(rownames.force = TRUE)
 }
@@ -40,18 +40,37 @@ get_trajectory_probability <- function (bm, tm, t = 1, window = 5) {
   probs
 }
 
-mc_accuracy <- function (tsbm, winners, losers, t) {
+acc <- function (test_set, tsbm, winners, losers, t) {
+  d_win <- get_trajectory_probability(tsbm, winners, t = t, window = 5)
+  d_los <- get_trajectory_probability(tsbm, losers, t = t, window = 5)
+  
+  mean(0 + ((d_win > d_los) == as.logical(test_set$radiant_win)), na.rm = TRUE)
+}
+
+mc_accuracy <- function (test_set, tsbm, winners, losers, t) {
   d_win <- get_trajectory_probability(tsbm, winners, t = t, window = 5)
   d_los <- get_trajectory_probability(tsbm, losers, t = t, window = 5)
   
   pred_win <- d_win > d_los
   
-  pred_win == as.logical(test_set$radiant_win) %>%
+  pred_win == as.logical(test_set, $radiant_win) %>%
     as.numeric() %>%
     mean(na.rm = TRUE)
 }
 
-reflect <- function (df, reflect_winners = FALSE) {
+pca_transform <- function (data, range = 0:99, cols = WINDOW_COLS[-2]) {
+  range %>%
+    map(~cols_window(. + 1:1, cols = cols)) %>%
+    map(~as.formula(paste("~", paste(., collapse = "+")))) %>%
+    map(~ prcomp(.x, data = data, retx = TRUE, na.action = na.omit) %>%
+          predict(newdata = data) %>%
+          .[, 1]
+    ) %>%
+    {names(.) <- imap(range + 1, ~glue("pca_{.y}")); .} %>%
+    as.data.frame()
+}
+
+reflect <- function (df, winners = FALSE) {
   df %>%
     filter(as.logical(radiant_win) == reflect_winners) %>%
     mutate_at(vars(matches("difference")), ~ifelse(is.na(.), ., . * -1)) %>%

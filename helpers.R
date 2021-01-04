@@ -8,9 +8,9 @@ cols_window <- function (window, cols = WINDOW_COLS) {
     reduce(c)
 }
 
-feat_formula <- function (window, cols = WINDOW_COLS) {
+feat_formula <- function (window, cols = WINDOW_COLS, outcome = "radiant_win") {
   cols_window(window, cols) %>%
-    map(~as.formula(paste("radiant_win~", paste(., collapse = "+"))))
+    map(~as.formula(paste(outcome, "~", paste(., collapse = "+"))))
 }
 
 standardize_time_df <- function (data) {

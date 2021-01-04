@@ -11,6 +11,7 @@ list.of.packages <- c(
   # utility libraries
   "Metrics",
   "reshape",
+  "glue",
   "tidyverse",
   "caret",
   "recipes",
@@ -32,6 +33,7 @@ rm(list.of.packages, new.packages)
 
 ```{r constants}
 WINDOW_COLS <- c("gold_difference", "xp_difference", "lh_difference")
+NBIN <- 8
 ```
 
 ```{r load-inner-modules}
@@ -44,27 +46,24 @@ source("markov-chains-helpers.R")
 matches_df <- read.csv("./data/match.csv",
                        colClasses = c(radiant_win = "logical"))
 time_df <- read.csv('./data/player_time.csv')
-
-matches_df$duration[1:20] / 60
 ```
 
 ### Preprocessing
 
 ```{r prepare-data}
 diffs_by_time_df <- time_df %>%
+  mutate(minute = times / 60) %>%
+  filter(minute <= 100) %>%
   mutate(gold_difference = diff_means(., "gold_t_[0-4]$", "gold_t_1[2-3]")) %>%
   mutate(xp_difference = diff_means(., "xp_t_[0-4]$", "xp_t_1[2-3]")) %>%
   mutate(lh_difference = diff_means(., "lh_t_[0-4]$", "lh_t_1[2-3]")) %>%
-  mutate(minute = times / 60) %>%
   select(match_id, minute, gold_difference, xp_difference, lh_difference) %>%
   pivot_wider(id_cols = "match_id", names_from = "minute",
               values_from = WINDOW_COLS) %>%
   select(-gold_difference_0, -xp_difference_0, -lh_difference_0) %>%
-  left_join(select(matches_df, match_id, radiant_win, duration),
+  left_join(select(matches_df, match_id, radiant_win),
             by = "match_id") %>%
-  mutate(radiant_win = as.factor(radiant_win)) %>%
-  # drop outliers
-  filter(duration / 60 <= 101)
+  mutate(radiant_win = as.factor(radiant_win))
 ```
 
 ### Train set and Test set split
@@ -87,12 +86,10 @@ tc <- trainControl(method = "cv", number = 3)
 train_set_std <- standardize_time_df(train_set)
 test_set_std <- standardize_time_df(test_set)
 
-# slr_all <- train_lr(data = train_set_std, cols = WINDOW_COLS, control = tc)
 # slr_gld <- train_lr(data = train_set_std, cols = WINDOW_COLS[1], control = tc)
 slr_glh <- train_lr(data = train_set_std, cols = WINDOW_COLS[-2], control = tc)
 
 lr_models <- list(
-  # "slr_all" = slr_all,
   # "slr_gld" = slr_gld,
   "slr_glh" = slr_glh
 )
@@ -133,19 +130,16 @@ test_performance %>%
 We see that the test accuracy behaves similarly to the test set cv accuracy from above.
 
 ### Markov Chains Model
-
 ```{r markov-chain-model, message=FALSE, warning=FALSE}
 # create winners transition matrix
-NBIN <- 8
+
 winners_tm <- train_set %>%
-  # reflect() %>% 
   filter(as.logical(radiant_win)) %>%
   as_binned_matrix(nbin = NBIN) %>%
   construct_transition_matrix(nbin = NBIN)
 
 # create losers transition matrix
 losers_tm <-  train_set %>%
-  # reflect(TRUE) %>% 
   filter(!as.logical(radiant_win)) %>%
   as_binned_matrix(nbin = NBIN) %>%
   construct_transition_matrix(nbin = NBIN)
@@ -171,44 +165,82 @@ losers_tm %>%
     ylab("Gold Bin States")
 ```
 
+```{r markov-pca}
+winners_pca_tm <- train_set %>%
+  filter(as.logical(radiant_win)) %>%
+  pca_transform(cols = WINDOW_COLS[1:2]) %>%
+  as_binned_matrix(nbin = NBIN, feature = "pc") %>%
+  construct_transition_matrix(nbin = NBIN)
+
+winners_pca_tm %>%
+  matrix_to_df() %>%
+  ggplot(mapping = aes(row, col, fill = value)) + 
+    geom_tile() +
+    geom_text(aes(label = round(value, 1))) +
+    ggtitle("Transition changes for the Winning team in the train set") +
+    xlab("Gold Bin States") +
+    ylab("Gold Bin States")
+
+
+# create losers transition matrix
+losers_pca_tm <-  train_set %>%
+  filter(!as.logical(radiant_win)) %>%
+  pca_transform(WINDOW_COLS[1:2]) %>%
+  as_binned_matrix(nbin = NBIN, feature = "pc") %>%
+  construct_transition_matrix(nbin = NBIN)
+```
+
 ```{r markov-chains-model-predictions, echo=FALSE}
-# TODO: use the faster method of updating and accessing transition probabilities
-# TODO: add prediction for the duration (discretized)
-# TODO: add decision tree model to see the accuracy
-# TODO: use the predicted probability as a predictor for the logistic regression
-# TODO: make pca of gold and last hits
-# TODO: add benchmark model with just the difference of gold \ last hits
-# TODO: test markov chain model with different types of discretization
-
 tsbm <- as_binned_matrix(test_set, nbin = NBIN)
+tsbm_pca <- test_set %>%
+  pca_transform() %>%
+  as_binned_matrix(nbin = NBIN, feature = "pc")
 
-mc_accuracies <- imap(1:80, ~mc_accuracy(tsbm, winners_tm, losers_tm, .))
+
+mc_accuracies <- data.frame(
+  accuracy = unlist(imap(1:80, ~acc(test_set, tsbm, winners_tm, losers_tm, .x))),
+  time = 1:80,
+  model = "MC"
+)
+
+mc_pca_accuracies <- data.frame(
+  accuracy = unlist(imap(1:80, ~acc(test_set, tsbm_pca, winners_pca_tm, losers_pca_tm, .x))),
+  time = 1:80,
+  model = "MC_PCA"
+)
+
+benchmark_accuracies <- test_set %>%
+  mutate_at(vars(starts_with("gold")), ~as.numeric((. > 0) == radiant_win)) %>%
+  summarise_at(vars(starts_with("gold")), mean, na.rm = TRUE) %>%
+  pivot_longer(cols = gold_difference_1:gold_difference_100,
+               values_to = "accuracy") %>%
+  mutate(time = 1:100, model = "Benchmark")
 
 bind_rows(
   test_performance[1:80, ],
-  data.frame(
-    accuracy = unlist(imap(1:80, ~acc(tsbm, winners_tm, losers_tm, .))),
-    time = 1:80,
-    model = "MC"
-  )
-) %>% 
+  mc_accuracies,
+  mc_pca_accuracies,
+  benchmark_accuracies
+) %>%
 ggplot(mapping = aes(x = time, y = accuracy, color = model)) +
 geom_line() +
 ggtitle("Test Set Accuracy")
+```
 
-# rows <- c(1, 2, 3, 4, 1)
-# cols <- c(4, 2, 5, 1, 4)
-# freq <- matrix(0, 5, 5)
-# 
-# out <- aggregate(val ~ rows + cols, cbind(rows, cols, val = 1), sum)
-# freq[as.matrix(out[1:2])] <- out$val
-# 
-# freq[cbind(indices[,1], indices[,2])] <- freq[cbind(m[,1], m[,2])] + 1
+```{r nbe}
+
+
 ```
-```
-We tried segmenting the markov chain models into different categories. When predicting
+
+### Notes
+
+* Tried reflecting losers and winners but it brought little to the table
+
+* We tried segmenting the markov chain models into different categories. When predicting
 for a minute we use a model for which is trained on games longer than that minute
 This didn't improve anything, probably because the gold transition changing is more
 important in early stages of the game.
 
-Tried different quantile bins for the gold states and seems that 8 gives better results than 10
+* Tried different quantile bins for the gold states and seems that 8 gives better results than 10
+
+* Tried PCA on different columns but maybe the calculations are off
