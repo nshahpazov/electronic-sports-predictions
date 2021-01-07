@@ -43,8 +43,11 @@ source("markov-chains-helpers.R")
 
 ### Loading data
 ```{r load-data}
-matches_df <- read.csv("./data/match.csv",
-                       colClasses = c(radiant_win = "logical"))
+matches_df <- read.csv(
+  "./data/match.csv"
+  colClasses = c(radiant_win = "logical")
+)
+
 time_df <- read.csv('./data/player_time.csv')
 ```
 
@@ -166,9 +169,9 @@ losers_tm %>%
 ```
 
 ```{r markov-pca}
-winners_pca_tm <- train_set %>%
+winners_pca_tm <- train_set_std %>%
   filter(as.logical(radiant_win)) %>%
-  pca_transform(cols = WINDOW_COLS[1:2]) %>%
+  pca_transform(cols = WINDOW_COLS[-2]) %>%
   as_binned_matrix(nbin = NBIN, feature = "pc") %>%
   construct_transition_matrix(nbin = NBIN)
 
@@ -178,12 +181,12 @@ winners_pca_tm %>%
     geom_tile() +
     geom_text(aes(label = round(value, 1))) +
     ggtitle("Transition changes for the Winning team in the train set") +
-    xlab("Gold Bin States") +
-    ylab("Gold Bin States")
+    xlab("PCA Bin States") +
+    ylab("PCA Bin States")
 
 
 # create losers transition matrix
-losers_pca_tm <-  train_set %>%
+losers_pca_tm <-  train_set_std %>%
   filter(!as.logical(radiant_win)) %>%
   pca_transform(WINDOW_COLS[1:2]) %>%
   as_binned_matrix(nbin = NBIN, feature = "pc") %>%
@@ -243,4 +246,4 @@ important in early stages of the game.
 
 * Tried different quantile bins for the gold states and seems that 8 gives better results than 10
 
-* Tried PCA on different columns but maybe the calculations are off
+* Tried PCA on different columns but maybe the calculations are offs

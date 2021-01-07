@@ -53,7 +53,7 @@ mc_accuracy <- function (test_set, tsbm, winners, losers, t) {
   
   pred_win <- d_win > d_los
   
-  pred_win == as.logical(test_set, $radiant_win) %>%
+  pred_win == as.logical(test_set$radiant_win) %>%
     as.numeric() %>%
     mean(na.rm = TRUE)
 }
@@ -62,9 +62,16 @@ pca_transform <- function (data, range = 0:99, cols = WINDOW_COLS[-2]) {
   range %>%
     map(~cols_window(. + 1:1, cols = cols)) %>%
     map(~as.formula(paste("~", paste(., collapse = "+")))) %>%
-    map(~ prcomp(.x, data = data, retx = TRUE, na.action = na.omit) %>%
-          predict(newdata = data) %>%
-          .[, 1]
+    map(
+      ~ prcomp(
+        .x,
+        data = data,
+        na.action = na.omit,
+        center = TRUE,
+        scale = TRUE
+      ) %>%
+        predict(newdata = data) %>%
+        .[, 1]
     ) %>%
     {names(.) <- imap(range + 1, ~glue("pca_{.y}")); .} %>%
     as.data.frame()
