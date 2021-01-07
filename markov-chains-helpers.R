@@ -63,7 +63,7 @@ pca_transform <- function (data, range = 0:99, cols = WINDOW_COLS[-2]) {
     map(~cols_window(. + 1:1, cols = cols)) %>%
     map(~as.formula(paste("~", paste(., collapse = "+")))) %>%
     map(
-      ~ prcomp(
+      ~ princomp(
         .x,
         data = data,
         na.action = na.omit,

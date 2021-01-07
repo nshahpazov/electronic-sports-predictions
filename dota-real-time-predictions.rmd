@@ -72,10 +72,12 @@ diffs_by_time_df <- time_df %>%
 ### Train set and Test set split
 
 ```{r test-train-split}
-train_indices <- createDataPartition(diffs_by_time_df$radiant_win,
-                                     p = .8,
-                                     list = FALSE,
-                                     times = 1)
+train_indices <- createDataPartition(
+  diffs_by_time_df$radiant_win,
+  p = .8,
+  list = FALSE,
+  times = 1
+)
 
 train_set <- diffs_by_time_df[train_indices, ]
 test_set <- diffs_by_time_df[-train_indices, ]
@@ -135,7 +137,6 @@ We see that the test accuracy behaves similarly to the test set cv accuracy from
 ### Markov Chains Model
 ```{r markov-chain-model, message=FALSE, warning=FALSE}
 # create winners transition matrix
-
 winners_tm <- train_set %>%
   filter(as.logical(radiant_win)) %>%
   as_binned_matrix(nbin = NBIN) %>%
@@ -150,7 +151,7 @@ losers_tm <-  train_set %>%
 # plot winners transition matrix
 winners_tm %>%
   matrix_to_df() %>%
-  ggplot(mapping = aes(row, col, fill = value)) + 
+  ggplot(mapping = aes(row, col, fill = value)) +
     geom_tile() +
     geom_text(aes(label = round(value, 1))) +
     ggtitle("Transition changes for the Winning team in the train set") +
@@ -168,10 +169,27 @@ losers_tm %>%
     ylab("Gold Bin States")
 ```
 
-```{r markov-pca}
-winners_pca_tm <- train_set_std %>%
+
+### Markov Chain model with a PCA-generated state space
+```{r markov-pca, include=FALSE}
+pca_data <- diffs_by_time_df %>%
+  standardize_time_df() %>%
+  pca_transform(cols = WINDOW_COLS[-2])
+
+pca_data$match_id <- diffs_by_time_df$match_id
+pca_data$radiant_win <- diffs_by_time_df$radiant_win
+
+pca_train_set <- pca_data[train_indices, ]
+pca_test_set <- pca_data[-train_indices, ]
+
+winners_pca_tm <- pca_train_set %>%
   filter(as.logical(radiant_win)) %>%
-  pca_transform(cols = WINDOW_COLS[-2]) %>%
+  as_binned_matrix(nbin = NBIN, feature = "pc") %>%
+  construct_transition_matrix(nbin = NBIN)
+
+# create losers transition matrix for pca data
+losers_pca_tm <-  pca_train_set %>%
+  filter(!as.logical(radiant_win)) %>%
   as_binned_matrix(nbin = NBIN, feature = "pc") %>%
   construct_transition_matrix(nbin = NBIN)
 
@@ -180,36 +198,34 @@ winners_pca_tm %>%
   ggplot(mapping = aes(row, col, fill = value)) + 
     geom_tile() +
     geom_text(aes(label = round(value, 1))) +
-    ggtitle("Transition changes for the Winning team in the train set") +
+    ggtitle("Transition changes for the winning team in the train set") +
     xlab("PCA Bin States") +
     ylab("PCA Bin States")
 
-
-# create losers transition matrix
-losers_pca_tm <-  train_set_std %>%
-  filter(!as.logical(radiant_win)) %>%
-  pca_transform(WINDOW_COLS[1:2]) %>%
-  as_binned_matrix(nbin = NBIN, feature = "pc") %>%
-  construct_transition_matrix(nbin = NBIN)
+losers_pca_tm %>%
+  matrix_to_df() %>%
+  ggplot(mapping = aes(row, col, fill = value)) + 
+    geom_tile() +
+    geom_text(aes(label = round(value, 1))) +
+    ggtitle("Transition changes for the losing team in the train set") +
+    xlab("PCA Bin States") +
+    ylab("PCA Bin States")
 ```
 
 ```{r markov-chains-model-predictions, echo=FALSE}
 tsbm <- as_binned_matrix(test_set, nbin = NBIN)
-tsbm_pca <- test_set %>%
-  pca_transform() %>%
-  as_binned_matrix(nbin = NBIN, feature = "pc")
+tsbm_pca <- pca_test_set %>% as_binned_matrix(nbin = NBIN, feature = "pc")
 
+pca_mc_accuracies <- data.frame(
+  accuracy = unlist(imap(1:80, ~acc(test_set, tsbm_pca, winners_pca_tm, losers_pca_tm, .x))),
+  time = 1:80,
+  model = "MC PCA"
+)
 
 mc_accuracies <- data.frame(
   accuracy = unlist(imap(1:80, ~acc(test_set, tsbm, winners_tm, losers_tm, .x))),
   time = 1:80,
   model = "MC"
-)
-
-mc_pca_accuracies <- data.frame(
-  accuracy = unlist(imap(1:80, ~acc(test_set, tsbm_pca, winners_pca_tm, losers_pca_tm, .x))),
-  time = 1:80,
-  model = "MC_PCA"
 )
 
 benchmark_accuracies <- test_set %>%
@@ -220,9 +236,9 @@ benchmark_accuracies <- test_set %>%
   mutate(time = 1:100, model = "Benchmark")
 
 bind_rows(
-  test_performance[1:80, ],
+  # test_performance[1:80, ],
   mc_accuracies,
-  mc_pca_accuracies,
+  pca_mc_accuracies,
   benchmark_accuracies
 ) %>%
 ggplot(mapping = aes(x = time, y = accuracy, color = model)) +
@@ -246,4 +262,4 @@ important in early stages of the game.
 
 * Tried different quantile bins for the gold states and seems that 8 gives better results than 10
 
-* Tried PCA on different columns but maybe the calculations are offs
+* Tried PCA on a transformation of gold and last hits but the Markov Chain seems to be performing slightly worse than the original
