@@ -44,7 +44,7 @@ source("markov-chains-helpers.R")
 ### Loading data
 ```{r load-data}
 matches_df <- read.csv(
-  "./data/match.csv"
+  "./data/match.csv",
   colClasses = c(radiant_win = "logical")
 )
 

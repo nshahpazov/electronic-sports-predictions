@@ -43,16 +43,16 @@ get_trajectory_probability <- function (bm, tm, t = 1, window = 5) {
 acc <- function (test_set, tsbm, winners, losers, t) {
   d_win <- get_trajectory_probability(tsbm, winners, t = t, window = 5)
   d_los <- get_trajectory_probability(tsbm, losers, t = t, window = 5)
-  
+
   mean(0 + ((d_win > d_los) == as.logical(test_set$radiant_win)), na.rm = TRUE)
 }
 
 mc_accuracy <- function (test_set, tsbm, winners, losers, t) {
   d_win <- get_trajectory_probability(tsbm, winners, t = t, window = 5)
   d_los <- get_trajectory_probability(tsbm, losers, t = t, window = 5)
-  
+
   pred_win <- d_win > d_los
-  
+
   pred_win == as.logical(test_set$radiant_win) %>%
     as.numeric() %>%
     mean(na.rm = TRUE)

@@ -1,0 +1,100 @@
+---
+title: "prior-classification"
+author: "Nikola Shahpazov"
+date: "1/16/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r package-setup, message=FALSE, warning=FALSE, include=FALSE, results='hide'}
+## Create the list of required packages
+list.of.packages <- c(
+  # utility libraries
+  "Metrics",
+  "reshape",
+  "glue",
+  "tidyverse",
+  "caret",
+  "recipes",
+  "purrr",
+  "rjson",
+  
+)
+
+new.packages <- list.of.packages[(!list.of.packages %in% installed.packages() |
+                                    list.of.packages %in% old.packages()[ ,"Package"])]
+
+if (length(new.packages)) {
+  install.packages(new.packages, repos = "http://cran.us.r-project.org")
+}
+
+## Load all necessary packages in RAM (working environment)
+lapply(list.of.packages, require, character.only = TRUE)
+
+rm(list.of.packages, new.packages)
+```
+
+### Loading the data for the prior modeling
+
+```{r loading-data}
+matches_df <- read.csv(
+  "./data/match.csv",
+  colClasses = c(radiant_win = "logical")
+)
+
+players_df <- read.csv("./data/players.csv")
+
+player_ratings_df <- read.csv("./data/player_ratings.csv")
+
+hero_stats_df <- "./data/hero_stats.json" %>%
+  jsonlite::fromJSON(flatten = TRUE) %>%
+  select(-roles, -img, -icon, -null_win, -ends_with("pick"), -ends_with("win"))
+```
+
+```{r feature-hero-selection-engineering}
+heroes_df <- players_df %>%
+  mutate(hero_id = ifelse(player_slot > 5, hero_id + 113, hero_id)) %>%
+  mutate(val = factor(1, levels = c(0, 1))) %>%
+  pivot_wider(
+    names_from = "hero_id",
+    values_from = "val",
+    values_fill = factor(0, levels = c(0, 1)),
+    names_glue = "hero_{hero_id}"
+  ) %>%
+  left_join(matches_df, by = "match_id") %>%
+  # TODO: make a join with hero stats as well
+  # TODO: maybe change the next lines
+  # TODO: join with player stats
+  select(radiant_win, starts_with("hero")) %>%
+  select(-hero_damage, -hero_healing) %>%
+  mutate(radiant_win = as.factor(ifelse(radiant_win, "YES", "NO")))
+```
+
+# Some simple modeling with L1, L2 or Elastic-Net regularization
+
+```{r training-models}
+train_indices <- createDataPartition(heroes_df$hero_id, p = .8, list = FALSE)
+
+heroes_train_df <- heroes_df[train_indices, ]
+heroes_test_df <- heroes_df[-train_indices, ]
+
+train_control <- trainControl(
+  method = "cv",
+  number = 5,
+  summaryFunction = twoClassSummary,
+  classProbs = TRUE
+)
+
+hero_glm_model <- train(
+  form = radiant_win ~ .,
+  data = heroes_train_df,
+  trControl = train_control,
+  method = "glmnet",
+  metric = "Accuracy",
+  family = "binomial"
+)
+```
