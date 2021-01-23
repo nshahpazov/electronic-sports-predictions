@@ -18,8 +18,10 @@ list.of.packages <- c(
   "purrr"
 )
 
-new.packages <- list.of.packages[(!list.of.packages %in% installed.packages() |
-                                    list.of.packages %in% old.packages()[ ,"Package"])]
+new.packages <- list.of.packages[(
+  !list.of.packages %in% installed.packages() |
+   list.of.packages %in% old.packages()[ ,"Package"]
+)]
 
 if (length(new.packages)) {
   install.packages(new.packages, repos = "http://cran.us.r-project.org")

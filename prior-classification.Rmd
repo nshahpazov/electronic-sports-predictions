@@ -21,12 +21,13 @@ list.of.packages <- c(
   "caret",
   "recipes",
   "purrr",
-  "rjson",
-  
+  "jsonlite"
 )
 
-new.packages <- list.of.packages[(!list.of.packages %in% installed.packages() |
-                                    list.of.packages %in% old.packages()[ ,"Package"])]
+new.packages <- list.of.packages[(
+  !list.of.packages %in% installed.packages() |
+   list.of.packages %in% old.packages()[ ,"Package"]
+)]
 
 if (length(new.packages)) {
   install.packages(new.packages, repos = "http://cran.us.r-project.org")
@@ -38,49 +39,72 @@ lapply(list.of.packages, require, character.only = TRUE)
 rm(list.of.packages, new.packages)
 ```
 
-### Loading the data for the prior modeling
+### Loading the data
 
 ```{r loading-data}
-matches_df <- read.csv(
-  "./data/match.csv",
-  colClasses = c(radiant_win = "logical")
-)
-
 players_df <- read.csv("./data/players.csv")
-
 player_ratings_df <- read.csv("./data/player_ratings.csv")
+matches_df <- read.csv("./data/match.csv",
+                       colClasses = c(radiant_win = "logical"))
 
 hero_stats_df <- "./data/hero_stats.json" %>%
   jsonlite::fromJSON(flatten = TRUE) %>%
-  select(-roles, -img, -icon, -null_win, -ends_with("pick"), -ends_with("win"))
+  select(
+    hero_id, attack_range, projectile_speed, attack_rate, move_speed, turn_rate,
+    starts_with("base"), ends_with("gain")
+  )
 ```
+## Feature engineering
 
-```{r feature-hero-selection-engineering}
+### Hero selection feature engineering
+
+Heroes dataframe containing a a 224 dimensional vector where
+x_n = 1 if the nth hero is in the radiant team and x_(n+113) if the nth hero is
+in the dire team for the match
+
+```{r feature-engineering-hero-selection}
 heroes_df <- players_df %>%
   mutate(hero_id = ifelse(player_slot > 5, hero_id + 113, hero_id)) %>%
-  mutate(val = factor(1, levels = c(0, 1))) %>%
+  mutate(val = 1) %>%
   pivot_wider(
     names_from = "hero_id",
     values_from = "val",
-    values_fill = factor(0, levels = c(0, 1)),
+    values_fill = 0,
     names_glue = "hero_{hero_id}"
   ) %>%
-  left_join(matches_df, by = "match_id") %>%
-  # TODO: make a join with hero stats as well
-  # TODO: maybe change the next lines
-  # TODO: join with player stats
-  select(radiant_win, starts_with("hero")) %>%
+  select(match_id, starts_with("hero")) %>%
   select(-hero_damage, -hero_healing) %>%
-  mutate(radiant_win = as.factor(ifelse(radiant_win, "YES", "NO")))
+  group_by(match_id) %>%
+  summarise(across(everything(), ~sum(.x, na.rm = TRUE)))
+```
+### Hero Statistics feature engineering
+
+A dataframe containing the hero statistics of each of the ten players
+for each game
+```{r feature-engineering-hero-stats}
+matches_hero_stats_df <- players_df %>%
+  select(match_id, hero_id, player_slot) %>%
+  left_join(hero_stats_df, by = "hero_id") %>%
+  select(-hero_id) %>%
+  pivot_wider(
+    names_from = "player_slot",
+    values_from = colnames(hero_stats_df)[-1]
+  ) %>%
+  mutate(across(everything(), ~replace_na(.x, 0)))
 ```
 
-# Some simple modeling with L1, L2 or Elastic-Net regularization
+### Some simple modeling with regularization
 
 ```{r training-models}
-train_indices <- createDataPartition(heroes_df$hero_id, p = .8, list = FALSE)
+train_indices <- createDataPartition(heroes_df$match_id, p = .8, list = FALSE)
+data <- matches_df %>%
+  select(match_id, radiant_win) %>%
+  left_join(heroes_df, by = "match_id") %>%
+  left_join(matches_hero_stats_df, by = "match_id") %>%
+  mutate(radiant_win = as.factor(ifelse(radiant_win, "yes", "no")))
 
-heroes_train_df <- heroes_df[train_indices, ]
-heroes_test_df <- heroes_df[-train_indices, ]
+heroes_train_df <- data[train_indices, ]
+heroes_test_df <- data[-train_indices, ]
 
 train_control <- trainControl(
   method = "cv",
@@ -97,4 +121,6 @@ hero_glm_model <- train(
   metric = "Accuracy",
   family = "binomial"
 )
+
+hero_glm_model$results
 ```
