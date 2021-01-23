@@ -83,4 +83,3 @@ matrix_to_df <- function (m, cols = c("col", "row", "value")) {
     .[order(.$X1), ] %>%
     { colnames(.) <- cols; . }
 }
-

@@ -37,6 +37,11 @@ lapply(list.of.packages, require, character.only = TRUE)
 rm(list.of.packages, new.packages)
 ```
 
+```{r load-helper-files}
+source("./prior-helpers.R")
+```
+
+
 ### Loading the data
 
 ```{r loading-data}
@@ -101,25 +106,8 @@ team_heroes_df <- players_df %>%
   pivot_wider(names_from = team, values_from = hero_id) %>%
   unchop(everything())
 
-
-generate_frequencies <- function (hero_matches_df) {
-  crossing(hero_team_1 = 0:112, hero_team_2 = 0:112)  %>%
-    filter(hero_team_1 != hero_team_2) %>%
-    left_join(., count(hero_matches_df, hero_team_1, hero_team_2)) %>%
-    mutate(n = replace_na(n, 1))
-}
-
-winners_hero_freq_df <- team_heroes_df %>%
-  filter(radiant_win) %>%
-  generate_frequencies()
-
-losers_hero_freq_df <- team_heroes_df %>%
-  filter(!radiant_win) %>%
-  generate_frequencies()
-
-hero_win_lose_ratios_df <- winners_hero_freq_df %>%
-  mutate(ratio = n / losers_hero_freq_df$n) %>%
-  select(-n)
+# TODO: this should be done only on a training set to prevent data leakage
+generate_ratios_df(team_heroes_df)
 ```
 
 
