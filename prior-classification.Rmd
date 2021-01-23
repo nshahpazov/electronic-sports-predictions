@@ -11,9 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 
 ```{r package-setup, message=FALSE, warning=FALSE, include=FALSE, results='hide'}
-## Create the list of required packages
 list.of.packages <- c(
-  # utility libraries
   "Metrics",
   "reshape",
   "glue",
@@ -50,11 +48,12 @@ matches_df <- read.csv("./data/match.csv",
 hero_stats_df <- "./data/hero_stats.json" %>%
   jsonlite::fromJSON(flatten = TRUE) %>%
   select(
-    hero_id, attack_range, projectile_speed, attack_rate, move_speed, turn_rate,
+    hero_id, attack_range, projectile_speed,
+    attack_rate, move_speed, turn_rate,
     starts_with("base"), ends_with("gain")
   )
 ```
-## Feature engineering
+## Feature Engineering
 
 ### Hero selection feature engineering
 
@@ -92,6 +91,37 @@ matches_hero_stats_df <- players_df %>%
   ) %>%
   mutate(across(everything(), ~replace_na(.x, 0)))
 ```
+
+### Winning rate of hero against other hero
+```{r feature-engineering-heroes-winning-ratios}
+team_heroes_df <- players_df %>%
+  left_join(select(matches_df, match_id, radiant_win), by = "match_id") %>%
+  mutate(team = ifelse(player_slot < 6, "hero_team_1", "hero_team_2")) %>%
+  select(match_id, team, hero_id, radiant_win) %>%
+  pivot_wider(names_from = team, values_from = hero_id) %>%
+  unchop(everything())
+
+
+generate_frequencies <- function (hero_matches_df) {
+  crossing(hero_team_1 = 0:112, hero_team_2 = 0:112)  %>%
+    filter(hero_team_1 != hero_team_2) %>%
+    left_join(., count(hero_matches_df, hero_team_1, hero_team_2)) %>%
+    mutate(n = replace_na(n, 1))
+}
+
+winners_hero_freq_df <- team_heroes_df %>%
+  filter(radiant_win) %>%
+  generate_frequencies()
+
+losers_hero_freq_df <- team_heroes_df %>%
+  filter(!radiant_win) %>%
+  generate_frequencies()
+
+hero_win_lose_ratios_df <- winners_hero_freq_df %>%
+  mutate(ratio = n / losers_hero_freq_df$n) %>%
+  select(-n)
+```
+
 
 ### Some simple modeling with regularization
 
