@@ -41,7 +41,6 @@ rm(list.of.packages, new.packages)
 source("./prior-helpers.R")
 ```
 
-
 ### Loading the data
 
 ```{r loading-data}
@@ -58,6 +57,13 @@ hero_stats_df <- "./data/hero_stats.json" %>%
     starts_with("base"), ends_with("gain")
   )
 ```
+## Clean Data
+```{r}
+# drop match 2134 since it has two heroes with 0 id
+matches_df <- filter(matches_df, match_id != 2134)
+players_df <- filter(players_df, match_id != 2134)
+```
+
 ## Feature Engineering
 
 ### Hero selection feature engineering
@@ -83,8 +89,9 @@ heroes_df <- players_df %>%
 ```
 ### Hero Statistics feature engineering
 
-A dataframe containing the hero statistics of each of the ten players
-for each game
+A create a dataframe containing the hero statistics of each of the ten players
+for each game like mana generation, base health, strength, durability, etc.
+
 ```{r feature-engineering-hero-stats}
 matches_hero_stats_df <- players_df %>%
   select(match_id, hero_id, player_slot) %>%
@@ -97,28 +104,47 @@ matches_hero_stats_df <- players_df %>%
   mutate(across(everything(), ~replace_na(.x, 0)))
 ```
 
-### Winning rate of hero against other hero
+### Winning rate of hero against other hero feature engineering
+
+We create a data frame with all the combinations of different heroes and their
+corresponding ratio of winning over losing calculated from all the games
+
 ```{r feature-engineering-heroes-winning-ratios}
-team_heroes_df <- players_df %>%
-  left_join(select(matches_df, match_id, radiant_win), by = "match_id") %>%
-  mutate(team = ifelse(player_slot < 6, "hero_team_1", "hero_team_2")) %>%
-  select(match_id, team, hero_id, radiant_win) %>%
-  pivot_wider(names_from = team, values_from = hero_id) %>%
-  unchop(everything())
-
 # TODO: this should be done only on a training set to prevent data leakage
-generate_ratios_df(team_heroes_df)
-```
+# TODO: do a join on the whole data frame
+# TODO: join with player ranks as well
+team_heroes_df <- generate_team_heroes_df(players_df)
+team_heroes_ratios_df <- generate_ratios_df(team_heroes_df)
 
+hero_combos <- team_heroes_df %>%
+  group_by(match_id) %>%
+  expand(hero_team_1, hero_team_2) %>%
+  ungroup()
+
+hero_combos_ratios_df <- hero_combos %>%
+  arrange(match_id) %>%
+  mutate(n = c(rep(seq(1, 25), 50000 - 1))) %>%
+  merge(team_heroes_ratios_df, by = c("hero_team_1", "hero_team_2")) %>%
+  pivot_wider(id_cols = match_id, names_from = n, values_from = ratio)
+```
 
 ### Some simple modeling with regularization
 
+We explore different classification mechanisms on the around 500-dimensional
+data frame of different matches constructed by us from the previous feature 
+engineering steps above. 
+
 ```{r training-models}
+
 train_indices <- createDataPartition(heroes_df$match_id, p = .8, list = FALSE)
 data <- matches_df %>%
   select(match_id, radiant_win) %>%
+  # join with the selected heroes vectors
   left_join(heroes_df, by = "match_id") %>%
+  # join with the hero statistics
   left_join(matches_hero_stats_df, by = "match_id") %>%
+  # join with team_heroes ratios
+
   mutate(radiant_win = as.factor(ifelse(radiant_win, "yes", "no")))
 
 heroes_train_df <- data[train_indices, ]
