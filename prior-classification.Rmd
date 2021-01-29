@@ -125,8 +125,29 @@ hero_combos_ratios_df <- hero_combos %>%
   arrange(match_id) %>%
   mutate(n = c(rep(seq(1, 25), 50000 - 1))) %>%
   merge(team_heroes_ratios_df, by = c("hero_team_1", "hero_team_2")) %>%
-  pivot_wider(id_cols = match_id, names_from = n, values_from = ratio)
+  pivot_wider(
+    id_cols = match_id,
+    names_from = n,
+    values_from = ratio,
+    names_glue = "hero_combo_{n}"
+  )
+
 ```
+### Player rankings feature engineering
+
+```{r feature-engineering-player-rankings}
+matches_player_rankings_df <- players_df %>%
+  select(match_id, account_id) %>%
+  left_join(player_ratings_df, by = "account_id") %>%
+  arrange(match_id) %>%
+  mutate(n = rep(seq(1, 10), 49999)) %>%
+  pivot_wider(
+    names_from = n,
+    id_cols = match_id,
+    values_from = c(trueskill_mu, trueskill_sigma, total_matches, total_wins)
+  )
+```
+
 
 ### Some simple modeling with regularization
 
@@ -137,7 +158,7 @@ engineering steps above.
 ```{r training-models}
 
 train_indices <- createDataPartition(heroes_df$match_id, p = .8, list = FALSE)
-data <- matches_df %>%
+match_data <- matches_df %>%
   select(match_id, radiant_win) %>%
   # join with the selected heroes vectors
   left_join(heroes_df, by = "match_id") %>%
@@ -147,8 +168,8 @@ data <- matches_df %>%
 
   mutate(radiant_win = as.factor(ifelse(radiant_win, "yes", "no")))
 
-heroes_train_df <- data[train_indices, ]
-heroes_test_df <- data[-train_indices, ]
+heroes_train_df <- match_data[train_indices, ]
+heroes_test_df <- match_data[-train_indices, ]
 
 train_control <- trainControl(
   method = "cv",
