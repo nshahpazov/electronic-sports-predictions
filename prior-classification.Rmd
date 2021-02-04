@@ -42,6 +42,21 @@ source("./prior-helpers.R")
 ```
 
 ### Loading the data
+We are using 4 main data sets
+* players - containing information about each match and each player in the 
+match, what hero did hey used, how much gold and kills they produced. We use
+this data frame for producing the played heroes data frame, i.e. a data frame 
+where each row is a 224-dimensional vector for which the ith coordinate
+corresponds whether the ith hero is in the radiant team and i + 112 is whether
+the ith hero is in the dire team
+* matches - this is the data frame which holds the target variable, i.e. 
+radiant_win which we are trying to predict both for real time predictions and 
+prior predictions. We join almost every other table by match_id with this one.
+* hero_stats.json contains information about the different heroes, e.g.
+attack range, vitality, attack range, etc.
+* player_ratings contains information about the TrueSkill rating of each of the 
+players involved. This one should probably be an important predictor for 
+classification.
 
 ```{r loading-data}
 players_df <- read.csv("./data/players.csv")
@@ -57,20 +72,13 @@ hero_stats_df <- "./data/hero_stats.json" %>%
     starts_with("base"), ends_with("gain")
   )
 ```
-## Clean Data
-```{r}
-# drop match 2134 since it has two heroes with 0 id
-matches_df <- filter(matches_df, match_id != 2134)
-players_df <- filter(players_df, match_id != 2134)
-```
-
 ## Feature Engineering
 
 ### Hero selection feature engineering
 
-Heroes dataframe containing a a 224 dimensional vector where
-x_n = 1 if the nth hero is in the radiant team and x_(n+113) if the nth hero is
-in the dire team for the match
+We produce the selected heroes data frame containing a a 224 dimensional vector 
+where x_n = 1 if the nth hero is in the radiant team and x_(n+113) if the nth 
+hero is in the dire team for the match
 
 ```{r feature-engineering-hero-selection}
 heroes_df <- players_df %>%
@@ -89,8 +97,9 @@ heroes_df <- players_df %>%
 ```
 ### Hero Statistics feature engineering
 
-A create a dataframe containing the hero statistics of each of the ten players
+We create a dataframe containing the hero statistics of each of the ten players
 for each game like mana generation, base health, strength, durability, etc.
+For example attack_range_3 is the attack range of the fourth player
 
 ```{r feature-engineering-hero-stats}
 matches_hero_stats_df <- players_df %>%
@@ -101,21 +110,43 @@ matches_hero_stats_df <- players_df %>%
     names_from = "player_slot",
     values_from = colnames(hero_stats_df)[-1]
   ) %>%
+  # impute missing values with 0 since they have 0 of that skill\statistic
   mutate(across(everything(), ~replace_na(.x, 0)))
 ```
 
 ### Winning rate of hero against other hero feature engineering
 
 We create a data frame with all the combinations of different heroes and their
-corresponding ratio of winning over losing calculated from all the games
+corresponding ratio of winning over losing calculated from all the games.
+Using this dataset of only 50k matches in total, this feature engineering 
+process does not produce useful information in the described manner. 
+Having so little matches, producing a ratio of winning-losing for player 
+playing a particular hero, we get NaNs almost for every account id.
 
 ```{r feature-engineering-heroes-winning-ratios}
 # TODO: this should be done only on a training set to prevent data leakage
 # TODO: do a join on the whole data frame
 # TODO: join with player ranks as well
+# TODO: remove rows with account id equal to 0
 team_heroes_df <- generate_team_heroes_df(players_df)
 team_heroes_ratios_df <- generate_ratios_df(team_heroes_df)
 
+team_heroes_df %>%
+  left_join(
+    team_heroes_ratios_df, by = c("hero_id_team_1", "hero_id_team_2", "account_id")
+  ) %>%
+  arrange(match_id) %>%
+  mutate(n = c(rep(seq(1, 5), 50000 - 1))) %>%
+  mutate(ratio = ifelse(account_id == 0, 1, ratio)) %>%
+   pivot_wider(
+    id_cols = match_id,
+    names_from = n,
+    values_from = ratio,
+    names_glue = "hero_combo_{n}"
+  )
+```
+```{r feature-engineering-heroes-winning-ratios}
+# we are not using those for now
 hero_combos <- team_heroes_df %>%
   group_by(match_id) %>%
   expand(hero_team_1, hero_team_2) %>%
@@ -124,7 +155,7 @@ hero_combos <- team_heroes_df %>%
 hero_combos_ratios_df <- hero_combos %>%
   arrange(match_id) %>%
   mutate(n = c(rep(seq(1, 25), 50000 - 1))) %>%
-  merge(team_heroes_ratios_df, by = c("hero_team_1", "hero_team_2")) %>%
+  merge(team_heroes_ratios_df, by = c("team_1", "team_2")) %>%
   pivot_wider(
     id_cols = match_id,
     names_from = n,
@@ -134,6 +165,10 @@ hero_combos_ratios_df <- hero_combos %>%
 
 ```
 ### Player rankings feature engineering
+Using the table having all the rankings of the different players we produce 
+again a data frame with for example trueskill_mu_{j} being the mean true skill 
+for the jth player, again 0-5 being the amazing radiant team, and the 6-10 being
+the not so amazing dire team.
 
 ```{r feature-engineering-player-rankings}
 matches_player_rankings_df <- players_df %>%
@@ -144,10 +179,132 @@ matches_player_rankings_df <- players_df %>%
   pivot_wider(
     names_from = n,
     id_cols = match_id,
-    values_from = c(trueskill_mu, trueskill_sigma, total_matches, total_wins)
+    values_from = c(trueskill_mu, trueskill_sigma)
   )
 ```
+### Data Preparation
+There are a lot of NaN values, some crazy big ones as well, 
+maybe used as a placeholder for something. We need to impute so that there 
+aren't any NaN or or wrong values  in order to fit a Logistic Regression or 
+whatever model.
 
+We clean the ratings, for some of the players we don't have
+calculated TrueSkill rating. We don't have more than 5 percent missing values 
+in that table.
+
+```{r data-preparation}
+sapply(matches_player_rankings_df, function(x) sum(is.na(x))) %>%
+  as.data.frame()
+
+# replace NaN values in the rankings with the mean of the particular column
+matches_player_rankings_df <- matches_player_rankings_df %>%
+  mutate_all(funs(ifelse(is.na(.), mean(., na.rm = TRUE), .)))
+```
+
+### Train\test set data splitting
+We join all the dataframes we have feature engineered so far into a single 
+dataframe containing all. Then we split the data into training and test sets 
+in a 80%\20% manner.
+```{r}
+train_indices <- createDataPartition(heroes_df$match_id, p = .8, list = FALSE)
+
+match_data <- matches_df %>%
+  select(match_id, radiant_win) %>%
+  # join with the selected heroes vectors
+  left_join(heroes_df, by = "match_id") %>%
+  # join with true skill rankings
+  left_join(matches_player_rankings_df, by = "match_id") %>%
+  # join with the hero statistics
+  left_join(matches_hero_stats_df, by = "match_id") %>%
+  mutate(radiant_win = as.factor(ifelse(radiant_win, "yes", "no")))
+
+train_df <- match_data[train_indices, ]
+test_df <- match_data[-train_indices, ]
+
+# sanity check for nan values
+as.data.frame(map(match_data, ~sum(is.na(.x))))
+```
+
+### Feature Selection mechanisms for a Simple Logistic Regression
+First, we use a simple approach of 5-times repeated 10-fold cross-validation 
+where for each resample, we fit the two models on 90% of the resample, 
+predict on the left 10% of the resample. We compute the ROC scores and do a 
+one-sided t-test comparision for effect of introducing one variable to the 
+null model containing only intercept. This approach is introduced more in 
+[2]Kuhn et Johnson.
+
+```{r exploring-one-predictor-effect-on-lr}
+# TODO: move this function to a helper file for the feature engineering process
+compare_models <- function (model1, model2, metric = model1$metric[1], ...) {
+  model_difference <- list(model1, model2) %>%
+    resamples() %>%
+    diff(metric = metric[1], ...)
+    # we return all the statistics from the caret package
+  model_difference$statistics[[1]][[1]]
+}
+
+null_matrix <- data.frame(intercept = rep(1, nrow(train_df)))
+
+# make an example in order to understand it better
+
+ctrl <- trainControl(
+  method = "repeatedcv",
+  repeats = 5,
+  classProbs = TRUE, 
+  summaryFunction = twoClassSummary
+)
+
+set.seed(63331)
+# baseline model 
+# control the training using repeated cross validation
+
+null_model <- train(
+  x = null_matrix,
+  y = train_df$radiant_win,
+  preProc = "YeoJohnson", # preprocessing of the predictors
+  method = "glm",
+  metric = "ROC",
+  trControl = ctrl
+)
+
+# we initialize the results data frame as an empty one
+features_to_try <- c(
+  colnames(select(matches_player_rankings_df, -match_id)),
+  colnames(select(matches_hero_stats_df, -match_id))
+)
+
+one_predictor_results <- data.frame(
+  Predictor = features_to_try,
+  Improvement = NA,
+  Pvalue = NA,
+  ROC = NA,
+  stringsAsFactors = FALSE
+)
+
+for (i in 1:nrow(one_predictor_results)) {
+  set.seed(63331)
+  current_columns <- c("radiant_win", one_predictor_results$Predictor[i])
+  var_mod <- train(
+    radiant_win ~ .,
+    data = train_df[, current_columns],
+    method = "glm",
+    metric = "ROC",
+    trControl = ctrl
+  )
+
+  tmp_diff <- compare_models(var_mod, null_model, alternative = "greater")
+
+  one_predictor_results$ROC[i] <- getTrainPerf(var_mod)[1, "TrainROC"]
+  one_predictor_results$Improvement[i] <- tmp_diff$estimate
+  one_predictor_results$Pvalue[i] <- tmp_diff$p.value
+}
+
+one_predictor_results %>%
+  arrange(desc(Improvement)) %>%
+  View()
+
+
+```
 
 ### Some simple modeling with regularization
 
@@ -157,19 +314,6 @@ engineering steps above.
 
 ```{r training-models}
 
-train_indices <- createDataPartition(heroes_df$match_id, p = .8, list = FALSE)
-match_data <- matches_df %>%
-  select(match_id, radiant_win) %>%
-  # join with the selected heroes vectors
-  left_join(heroes_df, by = "match_id") %>%
-  # join with the hero statistics
-  left_join(matches_hero_stats_df, by = "match_id") %>%
-  # join with team_heroes ratios
-
-  mutate(radiant_win = as.factor(ifelse(radiant_win, "yes", "no")))
-
-heroes_train_df <- match_data[train_indices, ]
-heroes_test_df <- match_data[-train_indices, ]
 
 train_control <- trainControl(
   method = "cv",
