@@ -38,6 +38,7 @@ rm(list.of.packages, new.packages)
 ```
 
 ```{r load-helper-files}
+source("./helpers.R")
 source("./prior-helpers.R")
 ```
 
@@ -136,7 +137,7 @@ team_heroes_df %>%
     team_heroes_ratios_df, by = c("hero_id_team_1", "hero_id_team_2", "account_id")
   ) %>%
   arrange(match_id) %>%
-  mutate(n = c(rep(seq(1, 5), 50000 - 1))) %>%
+  mutate(n = c(rep(seq(1, 5), 50000))) %>%
   mutate(ratio = ifelse(account_id == 0, 1, ratio)) %>%
    pivot_wider(
     id_cols = match_id,
@@ -175,7 +176,7 @@ matches_player_rankings_df <- players_df %>%
   select(match_id, account_id) %>%
   left_join(player_ratings_df, by = "account_id") %>%
   arrange(match_id) %>%
-  mutate(n = rep(seq(1, 10), 49999)) %>%
+  mutate(n = rep(seq(1, 10), 50000)) %>%
   pivot_wider(
     names_from = n,
     id_cols = match_id,
@@ -200,7 +201,41 @@ sapply(matches_player_rankings_df, function(x) sum(is.na(x))) %>%
 matches_player_rankings_df <- matches_player_rankings_df %>%
   mutate_all(funs(ifelse(is.na(.), mean(., na.rm = TRUE), .)))
 ```
+### Predictor transformations
+Since we have the same variables for all of the players, it might be better to
+take the mean of the variables in the first team and subtract from it the mean
+of the same variables in the second team.
 
+```{r predictor-transformations}
+# overwrite it selecting the aggregated ratings
+matches_player_rankings_df <- matches_player_rankings_df %>%
+  mutate(
+    trueskill_mu = diff_means(.,
+      "trueskill_mu_[1-5]",
+      "trueskill_mu_[6-9]|trueskill_mu_10"
+    ),
+    trueskill_sigma = diff_means(.,
+      "trueskill_sigma_[1-5]",
+      "trueskill_sigma_[6-9]|trueskill_mu_10"
+    )
+  ) %>%
+  select(match_id, trueskill_mu, trueskill_sigma)
+
+# same procedure for the hero statistics
+stat_cols <- colnames(select(hero_stats_df, -hero_id))
+
+for (i in 1:length(stat_cols)) {
+  matches_hero_stats_df[stat_cols[i]] <- diff_means(
+    matches_hero_stats_df,
+    glue("{stat_cols[i]}_[0-4]$"),
+    glue("{stat_cols[i]}_1[2-3]")
+  )
+}
+
+# overwrite it selecting the only the aggregated columns 
+matches_hero_stats_df <- select(matches_hero_stats_df, match_id, stat_cols)
+
+```
 ### Train\test set data splitting
 We join all the dataframes we have feature engineered so far into a single 
 dataframe containing all. Then we split the data into training and test sets 
@@ -211,7 +246,7 @@ train_indices <- createDataPartition(heroes_df$match_id, p = .8, list = FALSE)
 match_data <- matches_df %>%
   select(match_id, radiant_win) %>%
   # join with the selected heroes vectors
-  left_join(heroes_df, by = "match_id") %>%
+  # left_join(heroes_df, by = "match_id") %>%
   # join with true skill rankings
   left_join(matches_player_rankings_df, by = "match_id") %>%
   # join with the hero statistics
@@ -223,6 +258,7 @@ test_df <- match_data[-train_indices, ]
 
 # sanity check for nan values
 as.data.frame(map(match_data, ~sum(is.na(.x))))
+# all are 0s
 ```
 
 ### Feature Selection mechanisms for a Simple Logistic Regression
@@ -236,8 +272,10 @@ null model containing only intercept. This approach is introduced more in
 ```{r exploring-one-predictor-effect-on-lr}
 # TODO: move this function to a helper file for the feature engineering process
 compare_models <- function (model1, model2, metric = model1$metric[1], ...) {
-  model_difference <- list(model1, model2) %>%
-    resamples() %>%
+  glm_resampels <- list(model1, model2) %>%
+    resamples()
+
+  model_difference <- glm_rescamples %>%
     diff(metric = metric[1], ...)
     # we return all the statistics from the caret package
   model_difference$statistics[[1]][[1]]
@@ -255,29 +293,26 @@ ctrl <- trainControl(
 )
 
 set.seed(63331)
-# baseline model 
+# baseline model
 # control the training using repeated cross validation
 
 null_model <- train(
   x = null_matrix,
   y = train_df$radiant_win,
-  preProc = "YeoJohnson", # preprocessing of the predictors
+  preProc = "YeoJohnson",
   method = "glm",
   metric = "ROC",
   trControl = ctrl
 )
 
 # we initialize the results data frame as an empty one
-features_to_try <- c(
-  colnames(select(matches_player_rankings_df, -match_id)),
-  colnames(select(matches_hero_stats_df, -match_id))
-)
+features_to_try <- colnames(select(train_df, -match_id, -radiant_win))
 
 one_predictor_results <- data.frame(
   Predictor = features_to_try,
   Improvement = NA,
   Pvalue = NA,
-  ROC = NA,
+  Accuracy = NA,
   stringsAsFactors = FALSE
 )
 
@@ -294,17 +329,21 @@ for (i in 1:nrow(one_predictor_results)) {
 
   tmp_diff <- compare_models(var_mod, null_model, alternative = "greater")
 
-  one_predictor_results$ROC[i] <- getTrainPerf(var_mod)[1, "TrainROC"]
+  metrics <- getTrainPerf(var_mod)[1, ]
+  one_predictor_results$Accuracy[i] <- (metrics$TrainSpec + metrics$TrainSens) / 2
+  one_predictor_results$ROC[i] <- metrics$TrainROC
   one_predictor_results$Improvement[i] <- tmp_diff$estimate
   one_predictor_results$Pvalue[i] <- tmp_diff$p.value
 }
 
 one_predictor_results %>%
-  arrange(desc(Improvement)) %>%
-  View()
+  select(-Improvement) %>%
+  arrange(desc(Accuracy))
 
-
+write.csv(one_predictor_results, "./results/one-predictor-lr-effect.csv")
 ```
+
+
 
 ### Some simple modeling with regularization
 
@@ -313,8 +352,6 @@ data frame of different matches constructed by us from the previous feature
 engineering steps above. 
 
 ```{r training-models}
-
-
 train_control <- trainControl(
   method = "cv",
   number = 5,
