@@ -1,2 +1,2 @@
-##  Master Thesis - Nikola Shahpazov
-### Real time electronic sports predictions
+##  Master Thesis on Real and prior time electronic sports prediction
+

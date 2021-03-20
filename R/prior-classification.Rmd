@@ -11,15 +11,21 @@ knitr::opts_chunk$set(echo = TRUE)
 
 
 ```{r package-setup, message=FALSE, warning=FALSE, include=FALSE, results='hide'}
+library("reticulate")
+
 list.of.packages <- c(
   "Metrics",
   "reshape",
   "glue",
   "tidyverse",
   "caret",
+  "dbplyr",
+  "nodbi",
+  "mongolite",
   "recipes",
   "purrr",
-  "jsonlite"
+  "jsonlite",
+  "reticulate"
 )
 
 new.packages <- list.of.packages[(
@@ -134,7 +140,8 @@ team_heroes_ratios_df <- generate_ratios_df(team_heroes_df)
 
 team_heroes_df %>%
   left_join(
-    team_heroes_ratios_df, by = c("hero_id_team_1", "hero_id_team_2", "account_id")
+    team_heroes_ratios_df,
+    by = c("hero_id_team_1", "hero_id_team_2", "account_id")
   ) %>%
   arrange(match_id) %>%
   mutate(n = c(rep(seq(1, 5), 50000))) %>%
@@ -150,7 +157,7 @@ team_heroes_df %>%
 # we are not using those for now
 hero_combos <- team_heroes_df %>%
   group_by(match_id) %>%
-  expand(hero_team_1, hero_team_2) %>%
+  expand(hero_id_team_1, hero_id_team_2) %>%
   ungroup()
 
 hero_combos_ratios_df <- hero_combos %>%
@@ -225,28 +232,24 @@ matches_player_rankings_df <- matches_player_rankings_df %>%
 stat_cols <- colnames(select(hero_stats_df, -hero_id))
 
 for (i in 1:length(stat_cols)) {
-  matches_hero_stats_df[stat_cols[i]] <- diff_means(
-    matches_hero_stats_df,
-    glue("{stat_cols[i]}_[0-4]$"),
-    glue("{stat_cols[i]}_1[2-3]")
-  )
+  matches_hero_stats_df[stat_cols[i]] <- matches_hero_stats_df %>%
+    diff_means(glue("{stat_cols[i]}_[0-4]$"), glue("{stat_cols[i]}_1[2-3]"))
 }
 
 # overwrite it selecting the only the aggregated columns 
 matches_hero_stats_df <- select(matches_hero_stats_df, match_id, stat_cols)
-
 ```
 ### Train\test set data splitting
 We join all the dataframes we have feature engineered so far into a single 
 dataframe containing all. Then we split the data into training and test sets 
-in a 80%\20% manner.
+in a 80% \ 20% manner.
 ```{r}
 train_indices <- createDataPartition(heroes_df$match_id, p = .8, list = FALSE)
 
 match_data <- matches_df %>%
   select(match_id, radiant_win) %>%
   # join with the selected heroes vectors
-  # left_join(heroes_df, by = "match_id") %>%
+  left_join(heroes_df, by = "match_id") %>%
   # join with true skill rankings
   left_join(matches_player_rankings_df, by = "match_id") %>%
   # join with the hero statistics
@@ -257,7 +260,9 @@ train_df <- match_data[train_indices, ]
 test_df <- match_data[-train_indices, ]
 
 # sanity check for nan values
-as.data.frame(map(match_data, ~sum(is.na(.x))))
+match_data %>%
+  map(~sum(is.na(.x))) %>%
+  as.data.frame()
 # all are 0s
 ```
 
@@ -271,11 +276,12 @@ null model containing only intercept. This approach is introduced more in
 
 ```{r exploring-one-predictor-effect-on-lr}
 # TODO: move this function to a helper file for the feature engineering process
+# we are not executing those if the csv is already generated (takes too much time)
 compare_models <- function (model1, model2, metric = model1$metric[1], ...) {
-  glm_resampels <- list(model1, model2) %>%
+  glm_resamples <- list(model1, model2) %>%
     resamples()
 
-  model_difference <- glm_rescamples %>%
+  model_difference <- glm_resamples %>%
     diff(metric = metric[1], ...)
     # we return all the statistics from the caret package
   model_difference$statistics[[1]][[1]]
@@ -283,19 +289,16 @@ compare_models <- function (model1, model2, metric = model1$metric[1], ...) {
 
 null_matrix <- data.frame(intercept = rep(1, nrow(train_df)))
 
-# make an example in order to understand it better
-
 ctrl <- trainControl(
-  method = "repeatedcv",
-  repeats = 5,
+  method = "cv",
   classProbs = TRUE, 
   summaryFunction = twoClassSummary
 )
 
 set.seed(63331)
-# baseline model
-# control the training using repeated cross validation
 
+# baseline model 
+# control the training using repeated cross validation
 null_model <- train(
   x = null_matrix,
   y = train_df$radiant_win,
@@ -343,6 +346,53 @@ one_predictor_results %>%
 write.csv(one_predictor_results, "./results/one-predictor-lr-effect.csv")
 ```
 
+
+```{r}
+one_predictor_results <- read.csv("./results/one-predictor-lr-effect.csv")
+
+ctrl <- trainControl(
+  method = "cv",
+  classProbs = TRUE, 
+  summaryFunction = twoClassSummary
+)
+
+
+best_predictors <- one_predictor_results %>%
+  arrange(desc(Accuracy, Pvalue)) %>%
+  # head(19) %>%
+  .$Predictor
+
+var_mod <- train(
+  radiant_win ~ .,
+  data = train_df,
+  method = "glm",
+  metric = "ROC",
+  trControl = ctrl
+)
+
+
+rfe_ctrl <- rfeControl(
+  functions = lrFuncs,
+  method = "repeatedcv",
+  repeats = 5,
+  verbose = FALSE
+)
+
+lmProfile <- rfe(train_df[, best_predictors], train_df$radiant_win,
+                 sizes =  c(1:5, 10, 15, 20, 21),
+                 rfeControl = rfe_ctrl)
+
+train_df$radiant_win %>% table %>% prop.table
+(0.481425 * var_mod$results$Spec + 0.518575 * var_mod$results$Sens)
+```
+
+
+
+### Train a model with 5 best features
+
+```{r}
+
+```
 
 
 ### Some simple modeling with regularization

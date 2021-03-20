@@ -1,0 +1,724 @@
+[
+  {
+    "description": "Match ID",
+    "type": "integer",
+    "key": "match_id"
+  },
+  {
+    "description": "Which slot the player is in. 0-127 are Radiant, 128-255 are Dire",
+    "type": "integer",
+    "key": "player_slot"
+  },
+  {
+    "description": "An array describing how abilities were upgraded",
+    "type": "array",
+    "items": {
+      "type": "integer"
+    },
+    "key": "ability_upgrades_arr"
+  },
+  {
+    "description": "Object containing information on how many times the played used their abilities",
+    "type": "object",
+    "key": "ability_uses"
+  },
+  {
+    "description": "Object containing information on who the player used their abilities on",
+    "type": "object",
+    "key": "ability_targets"
+  },
+  {
+    "description": "Object containing information on how and how much damage the player dealt to other heroes",
+    "type": "object",
+    "key": "damage_targets"
+  },
+  {
+    "description": "account_id",
+    "type": "integer",
+    "key": "account_id"
+  },
+  {
+    "description": "Object containing information on how many and what type of actions the player issued to their hero",
+    "type": "object",
+    "key": "actions"
+  },
+  {
+    "description": "Object containing information on additional units the player had under their control",
+    "type": "object",
+    "key": "additional_units"
+  },
+  {
+    "description": "Number of assists the player had",
+    "type": "integer",
+    "key": "assists"
+  },
+  {
+    "description": "Item in backpack slot 0",
+    "type": "integer",
+    "key": "backpack_0"
+  },
+  {
+    "description": "Item in backpack slot 1",
+    "type": "integer",
+    "key": "backpack_1"
+  },
+  {
+    "description": "Item in backpack slot 2",
+    "type": "integer",
+    "key": "backpack_2"
+  },
+  {
+    "description": "Array containing information about buybacks",
+    "type": "array",
+    "items": {
+      "type": "object",
+      "properties": {
+        "time": {
+          "description": "Time in seconds the buyback occurred",
+          "type": "integer"
+        },
+        "slot": {
+          "description": "slot",
+          "type": "integer"
+        },
+        "player_slot": {
+          "description": "Which slot the player is in. 0-127 are Radiant, 128-255 are Dire",
+          "type": "integer"
+        }
+      }
+    },
+    "key": "buyback_log"
+  },
+  {
+    "description": "Number of camps stacked",
+    "type": "integer",
+    "key": "camps_stacked"
+  },
+  {
+    "description": "Array containing information about the player's disconnections and reconnections",
+    "type": "array",
+    "items": {
+      "type": "object",
+      "properties": {
+        "time": {
+          "description": "Game time in seconds the event ocurred",
+          "type": "integer"
+        },
+        "event": {
+          "description": "Event that occurred",
+          "type": "string"
+        },
+        "player_slot": {
+          "description": "Which slot the player is in. 0-127 are Radiant, 128-255 are Dire",
+          "type": "integer"
+        }
+      }
+    },
+    "key": "connection_log"
+  },
+  {
+    "description": "Number of creeps stacked",
+    "type": "integer",
+    "key": "creeps_stacked"
+  },
+  {
+    "description": "Object containing information about damage dealt by the player to different units",
+    "type": "object",
+    "key": "damage"
+  },
+  {
+    "description": "Object containing information about about the sources of this player's damage to heroes",
+    "type": "object",
+    "key": "damage_inflictor"
+  },
+  {
+    "description": "Object containing information about the sources of damage received by this player from heroes",
+    "type": "object",
+    "key": "damage_inflictor_received"
+  },
+  {
+    "description": "Object containing information about from whom the player took damage",
+    "type": "object",
+    "key": "damage_taken"
+  },
+  {
+    "description": "Number of deaths",
+    "type": "integer",
+    "key": "deaths"
+  },
+  {
+    "description": "Number of denies",
+    "type": "integer",
+    "key": "denies"
+  },
+  {
+    "description": "Array containing number of denies at different times of the match",
+    "type": "array",
+    "items": {
+      "type": "integer"
+    },
+    "key": "dn_t"
+  },
+  {
+    "description": "Gold at the end of the game",
+    "type": "integer",
+    "key": "gold"
+  },
+  {
+    "description": "Gold Per Minute obtained by this player",
+    "type": "integer",
+    "key": "gold_per_min"
+  },
+  {
+    "description": "Object containing information on how the player gainined gold over the course of the match",
+    "type": "object",
+    "key": "gold_reasons"
+  },
+  {
+    "description": "How much gold the player spent",
+    "type": "integer",
+    "key": "gold_spent"
+  },
+  {
+    "description": "Array containing total gold at different times of the match",
+    "type": "array",
+    "items": {
+      "type": "integer"
+    },
+    "key": "gold_t"
+  },
+  {
+    "description": "Hero Damage Dealt",
+    "type": "integer",
+    "key": "hero_damage"
+  },
+  {
+    "description": "Hero Healing Done",
+    "type": "integer",
+    "key": "hero_healing"
+  },
+  {
+    "description": "Object containing information on how many ticks of damages the hero inflicted with different spells and damage inflictors",
+    "type": "object",
+    "key": "hero_hits"
+  },
+  {
+    "description": "The ID value of the hero played",
+    "type": "integer",
+    "key": "hero_id"
+  },
+  {
+    "description": "Item in the player's first slot",
+    "type": "integer",
+    "key": "item_0"
+  },
+  {
+    "description": "Item in the player's second slot",
+    "type": "integer",
+    "key": "item_1"
+  },
+  {
+    "description": "Item in the player's third slot",
+    "type": "integer",
+    "key": "item_2"
+  },
+  {
+    "description": "Item in the player's fourth slot",
+    "type": "integer",
+    "key": "item_3"
+  },
+  {
+    "description": "Item in the player's fifth slot",
+    "type": "integer",
+    "key": "item_4"
+  },
+  {
+    "description": "Item in the player's sixth slot",
+    "type": "integer",
+    "key": "item_5"
+  },
+  {
+    "description": "Object containing information about how many times a player used items",
+    "type": "object",
+    "key": "item_uses"
+  },
+  {
+    "description": "Object containing information about the player's killstreaks",
+    "type": "object",
+    "key": "kill_streaks"
+  },
+  {
+    "description": "Object containing information about what units the player killed",
+    "type": "object",
+    "key": "killed"
+  },
+  {
+    "description": "Object containing information about who killed the player",
+    "type": "object",
+    "key": "killed_by"
+  },
+  {
+    "description": "Number of kills",
+    "type": "integer",
+    "key": "kills"
+  },
+  {
+    "description": "Array containing information on which hero the player killed at what time",
+    "type": "array",
+    "items": {
+      "type": "object",
+      "properties": {
+        "time": {
+          "description": "Time in seconds the player killed the hero",
+          "type": "integer"
+        },
+        "key": {
+          "description": "Hero killed",
+          "type": "string"
+        }
+      }
+    },
+    "key": "kills_log"
+  },
+  {
+    "description": "Object containing information on lane position",
+    "type": "object",
+    "key": "lane_pos"
+  },
+  {
+    "description": "Number of last hits",
+    "type": "integer",
+    "key": "last_hits"
+  },
+  {
+    "description": "Integer describing whether or not the player left the game. 0: didn't leave. 1: left safely. 2+: Abandoned",
+    "type": "integer",
+    "key": "leaver_status"
+  },
+  {
+    "description": "Level at the end of the game",
+    "type": "integer",
+    "key": "level"
+  },
+  {
+    "description": "Array describing last hits at each minute in the game",
+    "type": "array",
+    "items": {
+      "type": "integer"
+    },
+    "key": "lh_t"
+  },
+  {
+    "description": "life_state",
+    "type": "object",
+    "key": "life_state"
+  },
+  {
+    "description": "Object with information on the highest damage instance the player inflicted",
+    "type": "object",
+    "key": "max_hero_hit"
+  },
+  {
+    "description": "Object with information on the number of the number of multikills the player had",
+    "type": "object",
+    "key": "multi_kills"
+  },
+  {
+    "description": "Object with information on where the player placed observer wards. The location takes the form (outer number, inner number) and are from ~64-192.",
+    "type": "object",
+    "key": "obs"
+  },
+  {
+    "description": "obs_left_log",
+    "type": "array",
+    "items": {
+      "type": "object"
+    },
+    "key": "obs_left_log"
+  },
+  {
+    "description": "Object containing information on when and where the player placed observer wards",
+    "type": "array",
+    "items": {
+      "type": "object"
+    },
+    "key": "obs_log"
+  },
+  {
+    "description": "Total number of observer wards placed",
+    "type": "integer",
+    "key": "obs_placed"
+  },
+  {
+    "description": "party_id",
+    "type": "integer",
+    "key": "party_id"
+  },
+  {
+    "description": "Array describing permanent buffs the player had at the end of the game. List of constants can be found here: https://github.com/odota/dotaconstants/blob/master/json/permanent_buffs.json",
+    "type": "array",
+    "items": {
+      "type": "object"
+    },
+    "key": "permanent_buffs"
+  },
+  {
+    "description": "Total number of pings",
+    "type": "integer",
+    "key": "pings"
+  },
+  {
+    "description": "Object containing information on the items the player purchased",
+    "type": "object",
+    "key": "purchase"
+  },
+  {
+    "description": "Object containing information on when items were purchased",
+    "type": "array",
+    "items": {
+      "type": "object",
+      "properties": {
+        "time": {
+          "description": "Time in seconds the item was bought",
+          "type": "integer"
+        },
+        "key": {
+          "description": "Integer item ID",
+          "type": "string"
+        }
+      }
+    },
+    "key": "purchase_log"
+  },
+  {
+    "description": "Number of runes picked up",
+    "type": "integer",
+    "key": "rune_pickups"
+  },
+  {
+    "description": "Object with information about which runes the player picked up",
+    "type": "object",
+    "additionalProperties": {
+      "type": "integer"
+    },
+    "key": "runes"
+  },
+  {
+    "description": "Array with information on when runes were picked up",
+    "type": "array",
+    "items": {
+      "type": "object",
+      "properties": {
+        "time": {
+          "description": "Time in seconds rune picked up",
+          "type": "integer"
+        },
+        "key": {
+          "description": "key",
+          "type": "integer"
+        }
+      }
+    },
+    "key": "runes_log"
+  },
+  {
+    "description": "Object with information on where sentries were placed. The location takes the form (outer number, inner number) and are from ~64-192.",
+    "type": "object",
+    "key": "sen"
+  },
+  {
+    "description": "Array containing information on when and where the player placed sentries",
+    "type": "array",
+    "items": {
+      "type": "object"
+    },
+    "key": "sen_left_log"
+  },
+  {
+    "description": "Array with information on when and where sentries were placed by the player",
+    "type": "array",
+    "items": {
+      "type": "object"
+    },
+    "key": "sen_log"
+  },
+  {
+    "description": "How many sentries were placed by the player",
+    "type": "integer",
+    "key": "sen_placed"
+  },
+  {
+    "description": "Total stun duration of all stuns by the player",
+    "type": "number",
+    "key": "stuns"
+  },
+  {
+    "description": "Time in seconds corresponding to the time of entries of other arrays in the match.",
+    "type": "array",
+    "items": {
+      "type": "integer"
+    },
+    "key": "times"
+  },
+  {
+    "description": "Total tower damage done by the player",
+    "type": "integer",
+    "key": "tower_damage"
+  },
+  {
+    "description": "Experience Per Minute obtained by the player",
+    "type": "integer",
+    "key": "xp_per_min"
+  },
+  {
+    "description": "Object containing information on the sources of this player's experience",
+    "type": "object",
+    "key": "xp_reasons"
+  },
+  {
+    "description": "Experience at each minute of the game",
+    "type": "array",
+    "items": {
+      "type": "integer"
+    },
+    "key": "xp_t"
+  },
+  {
+    "description": "personaname",
+    "type": "string",
+    "key": "personaname"
+  },
+  {
+    "description": "name",
+    "type": "string",
+    "key": "name"
+  },
+  {
+    "description": "Time in seconds of last login of the player",
+    "type": "dateTime",
+    "key": "last_login"
+  },
+  {
+    "description": "Boolean indicating whether Radiant won the match",
+    "type": "boolean",
+    "key": "radiant_win"
+  },
+  {
+    "description": "Start time of the match in seconds since 1970",
+    "type": "integer",
+    "key": "start_time"
+  },
+  {
+    "description": "Duration of the game in seconds",
+    "type": "integer",
+    "key": "duration"
+  },
+  {
+    "description": "cluster",
+    "type": "integer",
+    "key": "cluster"
+  },
+  {
+    "description": "Integer corresponding to lobby type of match. List of constants can be found here: https://github.com/odota/dotaconstants/blob/master/json/lobby_type.json",
+    "type": "integer",
+    "key": "lobby_type"
+  },
+  {
+    "description": "Integer corresponding to game mode played. List of constants can be found here: https://github.com/odota/dotaconstants/blob/master/json/game_mode.json",
+    "type": "integer",
+    "key": "game_mode"
+  },
+  {
+    "description": "Integer representing the patch the game was played on",
+    "type": "integer",
+    "key": "patch"
+  },
+  {
+    "description": "Integer corresponding to the region the game was played on",
+    "type": "integer",
+    "key": "region"
+  },
+  {
+    "description": "Boolean for whether or not the player is on Radiant",
+    "type": "boolean",
+    "key": "isRadiant"
+  },
+  {
+    "description": "Binary integer representing whether or not the player won",
+    "type": "integer",
+    "key": "win"
+  },
+  {
+    "description": "Binary integer representing whether or not the player lost",
+    "type": "integer",
+    "key": "lose"
+  },
+  {
+    "description": "Total gold at the end of the game",
+    "type": "integer",
+    "key": "total_gold"
+  },
+  {
+    "description": "Total experience at the end of the game",
+    "type": "integer",
+    "key": "total_xp"
+  },
+  {
+    "description": "Number of kills per minute",
+    "type": "number",
+    "key": "kills_per_min"
+  },
+  {
+    "description": "kda",
+    "type": "number",
+    "key": "kda"
+  },
+  {
+    "description": "abandons",
+    "type": "integer",
+    "key": "abandons"
+  },
+  {
+    "description": "Total number of neutral creeps killed",
+    "type": "integer",
+    "key": "neutral_kills"
+  },
+  {
+    "description": "Total number of tower kills the player had",
+    "type": "integer",
+    "key": "tower_kills"
+  },
+  {
+    "description": "Total number of courier kills the player had",
+    "type": "integer",
+    "key": "courier_kills"
+  },
+  {
+    "description": "Total number of lane creeps killed by the player",
+    "type": "integer",
+    "key": "lane_kills"
+  },
+  {
+    "description": "Total number of heroes killed by the player",
+    "type": "integer",
+    "key": "hero_kills"
+  },
+  {
+    "description": "Total number of observer wards killed by the player",
+    "type": "integer",
+    "key": "observer_kills"
+  },
+  {
+    "description": "Total number of sentry wards killed by the player",
+    "type": "integer",
+    "key": "sentry_kills"
+  },
+  {
+    "description": "Total number of roshan kills (last hit on roshan) the player had",
+    "type": "integer",
+    "key": "roshan_kills"
+  },
+  {
+    "description": "Total number of Necronomicon creeps killed by the player",
+    "type": "integer",
+    "key": "necronomicon_kills"
+  },
+  {
+    "description": "Total number of Ancient creeps killed by the player",
+    "type": "integer",
+    "key": "ancient_kills"
+  },
+  {
+    "description": "Total number of buyback the player used",
+    "type": "integer",
+    "key": "buyback_count"
+  },
+  {
+    "description": "Number of observer wards used",
+    "type": "integer",
+    "key": "observer_uses"
+  },
+  {
+    "description": "Number of sentry wards used",
+    "type": "integer",
+    "key": "sentry_uses"
+  },
+  {
+    "description": "lane_efficiency",
+    "type": "number",
+    "key": "lane_efficiency"
+  },
+  {
+    "description": "lane_efficiency_pct",
+    "type": "number",
+    "key": "lane_efficiency_pct"
+  },
+  {
+    "description": "Integer referring to which lane the hero laned in",
+    "type": "integer",
+    "key": "lane"
+  },
+  {
+    "description": "lane_role",
+    "type": "integer",
+    "key": "lane_role"
+  },
+  {
+    "description": "Boolean referring to whether or not the player roamed",
+    "type": "boolean",
+    "key": "is_roaming"
+  },
+  {
+    "description": "Object with information on when the player last purchased an item",
+    "type": "object",
+    "key": "purchase_time"
+  },
+  {
+    "description": "Object with information on when the player first puchased an item",
+    "type": "object",
+    "key": "first_purchase_time"
+  },
+  {
+    "description": "Object with information on whether or not the item won",
+    "type": "object",
+    "key": "item_win"
+  },
+  {
+    "description": "Object containing binary integers the tell whether the item was purchased by the player (note: this is always 1)",
+    "type": "object",
+    "key": "item_usage"
+  },
+  {
+    "description": "Total number of TP scrolls purchased by the player",
+    "type": "object",
+    "key": "purchase_tpscroll"
+  },
+  {
+    "description": "Actions per minute",
+    "type": "integer",
+    "key": "actions_per_min"
+  },
+  {
+    "description": "life_state_dead",
+    "type": "integer",
+    "key": "life_state_dead"
+  },
+  {
+    "description": "The rank tier of the player. Tens place indicates rank, ones place indicates stars.",
+    "type": "integer",
+    "key": "rank_tier"
+  },
+  {
+    "description": "cosmetics",
+    "type": "array",
+    "items": {
+      "type": "integer"
+    },
+    "key": "cosmetics"
+  },
+  {
+    "description": "Object containing information on certain benchmarks like GPM, XPM, KDA, tower damage, etc",
+    "type": "object",
+    "key": "benchmarks"
+  }
+]
