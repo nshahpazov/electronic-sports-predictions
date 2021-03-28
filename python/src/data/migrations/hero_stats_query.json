@@ -1,0 +1,12 @@
+[
+  {
+    "$set": {
+      "result.hero_id": "$hero_id"
+    }
+  },
+  {
+    "$replaceRoot": {
+      "newRoot": "$result"
+    }
+  }
+]
