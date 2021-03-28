@@ -31,9 +31,16 @@ if __name__ == "__main__":
     db = client[MONGO_DATABASE_NAME]
     benchmark = db.benchmark
 
-    # load the data from mongo
-    hero_stats_mongo_query = json.load(open('src/data/migrations/hero_stats_query.json'))
-    hero_stats_collection = benchmark.aggregate(hero_stats_mongo_query)
+    # load the data from mongodb
+    hero_stats_collection = benchmark.aggregate([{
+        "$set": {
+        "result.hero_id": "$hero_id"
+        }
+    },{
+        "$replaceRoot": {
+        "newRoot": "$result"
+        }
+    }])
 
     # transform the data into table format
     hero_stats = [combine_hero_stats(h, i) for h in hero_stats_collection for i in range(10)]

@@ -4,7 +4,6 @@ from pymongo import MongoClient
 from multiprocessing import Pool
 import os
 from dotenv import find_dotenv, load_dotenv
-from copy import deepcopy
 from progress.bar import Bar
 import logging
 import operator
@@ -19,12 +18,12 @@ OPENDOTA_API_KEY = os.environ.get("OPEN_DOTA_API_KEY")
 
 OPENDOTA_ACCOUNTS_URI  = "https://api.opendota.com/api/players/"
 
-# this might change
+# NB: this might change to player according to experimentation
 PLAYER_COLLECTION_NAME = "players_test"
 
 MIN_MATCH = 100
 
-async def crawl_player(account_id, session):
+async def download_player(account_id, session):
     account_uri = OPENDOTA_ACCOUNTS_URI + str(account_id)
     params = {"api_key": OPENDOTA_API_KEY}
 
@@ -78,6 +77,7 @@ async def crawl_player(account_id, session):
         logging.error('HTTP error', str(e))
         return None
 
+# TODO: add docs comment
 def load_players_list(fin):
     player_list = []
 
@@ -95,7 +95,7 @@ def load_players_list(fin):
 
     return player_list
 
-async def crawl_players(ids):
+async def download_players(ids):
     # open a mongo database connection
     client = MongoClient(MONGO_DATABASE_URL)
     db = client[MONGO_DATABASE_NAME]
@@ -105,10 +105,13 @@ async def crawl_players(ids):
     # some of the ids from the file may be present in the database
     already_present_ids = [p["account_id"] for p in found_players if "account_id" in p]
     ids_to_crawl = np.setdiff1d(ids, already_present_ids)
+
+    # TODO: extract 100 and 200 as arguments of a click script
     ids_to_crawl = ids_to_crawl[100:200].astype(int).tolist()
 
+    # create a sequence of tasks
     async with aiohttp.ClientSession() as session:
-        tasks = [asyncio.ensure_future(crawl_player(id, session)) for id in ids_to_crawl]
+        tasks = [asyncio.ensure_future(download_player(id, session)) for id in ids_to_crawl]
         responses = await asyncio.gather(*tasks)
         clean_responses = [res for res in responses if res != None]
         player_collection.insert_many(clean_responses)
@@ -120,6 +123,7 @@ if __name__ == "__main__":
 
     fin.close()
 
+    # start the async event loop and execute the http queries
     loop = asyncio.get_event_loop()
-    future = asyncio.ensure_future(crawl_players(player_ids))
+    future = asyncio.ensure_future(download_players(player_ids))
     loop.run_until_complete(future)
