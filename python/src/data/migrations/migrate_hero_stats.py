@@ -2,37 +2,29 @@ import sqlite3
 from dotenv import find_dotenv, load_dotenv
 from pymongo import MongoClient
 import os
-import json
 
 load_dotenv(find_dotenv())
 
 MONGO_DATABASE_URL = os.environ.get("MONGO_DATABASE_URL")
 MONGO_DATABASE_NAME = os.environ.get("MONGO_DATABASE_NAME")
 
-def combine_hero_stats(hero, i):
+def merge_hero_stats(hero, i):
     return {
         "percentile": hero["xp_per_min"][i]["percentile"],
-        "xp_per_min": hero["xp_per_min"][i]["value"],
-        "kills_per_min": hero["kills_per_min"][i]["value"],
-        "hero_damage_per_min": hero["hero_damage_per_min"][i]["value"],
-        "last_hits_per_min": hero["last_hits_per_min"][i]["value"],
-        "hero_healing_per_min": hero["hero_healing_per_min"][i]["value"],
-        "tower_damage": hero["tower_damage"][i]["value"],
-        "gold_per_min": hero["gold_per_min"][i]["value"],
         "hero_id": hero["hero_id"]
-    }
+    } | {k: hero[k][i]["value"] for k in hero.keys() if k != "hero_id"}
 
 if __name__ == "__main__":
+
     # database connections
     conn = sqlite3.connect('./datasets/db/dota.db')
     c = conn.cursor()
 
     client = MongoClient(MONGO_DATABASE_URL)
     db = client[MONGO_DATABASE_NAME]
-    benchmark = db.benchmark
 
     # load the data from mongodb
-    hero_stats_collection = benchmark.aggregate([{
+    hero_stats_collection = db.benchmark.aggregate([{
         "$set": {
         "result.hero_id": "$hero_id"
         }
@@ -43,7 +35,7 @@ if __name__ == "__main__":
     }])
 
     # transform the data into table format
-    hero_stats = [combine_hero_stats(h, i) for h in hero_stats_collection for i in range(10)]
+    hero_stats = [merge_hero_stats(h, i) for h in hero_stats_collection for i in range(10)]
 
     # prepare the sql query
     hero_stats_keys = hero_stats[0].keys()
@@ -55,6 +47,9 @@ if __name__ == "__main__":
     # execute the query and close the connection
     c.executemany(insert_query, hero_stats_rows);
     print('We have inserted', c.rowcount, 'records to the table.')
+
+    # TODO: next: persist players info
+    # TODO: prepare the player_hero_attr data with SQL
 
     conn.commit()
     conn.close()
