@@ -85,17 +85,28 @@ CREATE TABLE match_player (
   gold INTEGER,
   deaths INTEGER,
   hero_damage INTEGER,
-  scaled_hero_damage INTEGER,
   last_hits INTEGER,
   denies INTEGER,
-  scaled_hero_healing INTEGER,
   tower_damage INTEGER,
   xp_per_min INTEGER,
   kills INTEGER,
-  scaled_tower_damage INTEGER,
   hero_healing INTEGER,
   assists INTEGER,
   gold_per_min INTEGER,
   level INTEGER,
   PRIMARY KEY (id)
+);
+
+CREATE TABLE match (
+  id INTEGER NOT NULL,
+  barracks_status_dire INTEGER,
+  match_id INTEGER,
+  duration INTEGER,
+  radiant_win BOOLEAN,
+  tower_status_dire INTEGER,
+  tower_status_radiant INTEGER,
+  human_players INTEGER,
+  start_time INTEGER,
+  game_mode INTEGER,
+    PRIMARY KEY (id)
 );
