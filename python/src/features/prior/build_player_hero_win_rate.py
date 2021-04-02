@@ -5,7 +5,6 @@ from six.moves import cPickle
 import numpy as np
 from sklearn import preprocessing
 
-
 num_heroes = 113
 
 def save_as_pk(data, filename):

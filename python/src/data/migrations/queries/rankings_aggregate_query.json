@@ -1,0 +1,34 @@
+[
+  {
+    "$set": {
+      "heroes_rankings.account_id": "$account_id"
+    }
+  },
+  {
+    "$unwind": "$heroes_rankings"
+  },
+  {
+    "$replaceRoot": {
+      "newRoot": "$heroes_rankings"
+    }
+  },
+  {
+    "$project": {
+      "card": 1,
+      "account_id": 1,
+      "hero_id": 1,
+      "rank": {
+        "$ifNull": [
+          "$percent_rank",
+          "$rank"
+        ]
+      },
+      "card": {
+        "$ifNull": [
+          "$numeric_rank",
+          "$card"
+        ]
+      }
+    }
+  }
+]

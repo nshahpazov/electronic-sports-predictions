@@ -18,6 +18,7 @@ CREATE TABLE mmr_distribution (
   bin_name INTEGER,
   count INTEGER,
   cumulative_sum INTEGER,
+  percentile REAL,
   PRIMARY KEY (id)
 );
 
@@ -108,5 +109,5 @@ CREATE TABLE match (
   human_players INTEGER,
   start_time INTEGER,
   game_mode INTEGER,
-    PRIMARY KEY (id)
+  PRIMARY KEY (id)
 );
