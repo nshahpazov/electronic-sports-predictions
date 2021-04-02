@@ -61,7 +61,3 @@ if __name__ == "__main__":
 
     conn.commit()
     conn.close()
-
-# NEXT
-# TODO: migrate player_match data
-# TODO: migrate match data

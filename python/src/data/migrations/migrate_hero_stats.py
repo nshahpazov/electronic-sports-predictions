@@ -48,8 +48,5 @@ if __name__ == "__main__":
     c.executemany(insert_query, hero_stats_rows);
     print('We have inserted', c.rowcount, 'records to the table.')
 
-    # TODO: next: persist players info
-    # TODO: prepare the player_hero_attr data with SQL
-
     conn.commit()
     conn.close()

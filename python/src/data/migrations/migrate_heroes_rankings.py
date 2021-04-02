@@ -1,6 +1,7 @@
 import sqlite3
 from dotenv import find_dotenv, load_dotenv
 from pymongo import MongoClient
+import json
 import os
 
 load_dotenv(find_dotenv())
@@ -17,27 +18,12 @@ if __name__ == "__main__":
     client = MongoClient(MONGO_DATABASE_URL)
     db = client[MONGO_DATABASE_NAME]
 
+    # load the mongo query file
+    rankings_query_file = open('./src/data/migrations/queries/rankings_aggregate_query.json')
+    rankings_mongo_aggregate_query = json.load(rankings_query_file)
+
     # load the data from mongodb
-    # TODO: move the query to a separate json file
-    rankings = db.player.aggregate([{
-        "$set": {
-            "heroes_rankings.account_id": "$account_id"
-        }
-    }, {
-        "$unwind": "$heroes_rankings"
-    }, {
-        "$replaceRoot": {
-            "newRoot": "$heroes_rankings"
-        }
-    }, {
-        "$project": {
-            "card": 1,
-            "account_id": 1,
-            "hero_id": 1,
-            "rank": { "$ifNull": [ "$percent_rank", "$rank" ] },
-            "card": { "$ifNull": [ "$numeric_rank", "$card" ] }
-        }
-    }])
+    rankings = db.player.aggregate(rankings_mongo_aggregate_query)
 
     # transform the data into table format
     ranking_keys = list(db.player.find_one()["heroes_rankings"][0].keys()) + ["account_id"]

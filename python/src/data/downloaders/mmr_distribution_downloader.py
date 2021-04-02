@@ -24,7 +24,7 @@ def save_distribution(table, mmr_distribution):
     c = conn.cursor()
 
     args_str = ", ".join(mmr_distribution[0].keys())
-    insert_query = 'INSERT INTO %s(%s) VALUES(?, ?, ?, ?);' % (table, args_str)
+    insert_query = 'INSERT INTO %s(%s) VALUES(?, ?, ?, ?, ?);' % (table, args_str)
 
     c.executemany(insert_query, [tuple(d[k] for k in d.keys()) for d in mmr_distribution])
     print('We have inserted', c.rowcount, 'records to the table.')
@@ -59,7 +59,8 @@ if __name__ == "__main__":
     # loop.run_until_complete(get_and_store_distributions())
 
     # do it from the local file so that the same data as in the paper is used
-    mmr_distr_file = open('datasets/external/mmr_distribution.json')
-    mmr_distribution = json.load(mmr_distr_file)
+    mmr_distr = json.load(open('datasets/external/mmr_distribution.json'))
+    max_sum = max([mmr_bin["cumulative_sum"] for mmr_bin in mmr_distr])
+    mmr_extended_distr = [m | {"percentile": m["cumulative_sum"] / max_sum} for m in mmr_distr]
 
-    save_distribution("mmr_distribution", mmr_distribution)
+    save_distribution("mmr_distribution", mmr_extended_distr)
