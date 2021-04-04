@@ -7,7 +7,6 @@ import os
 
 load_dotenv(find_dotenv())
 
-dsadsadsaas
 @click.command()
 @click.argument('input_filepath', type=click.Path(exists=True))
 @click.argument('output_filepath', type=click.Path())
