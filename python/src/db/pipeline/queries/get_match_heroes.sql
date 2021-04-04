@@ -1,6 +1,7 @@
-SELECT match_id,
+SELECT mp.match_id,
 
 -- hero_{j} = I(hero_j belongs to radiant team)
+m.radiant_win,
 sum(hero_id =   1 and player_slot < 128) as "hero_1",
 sum(hero_id =   2 and player_slot < 128) as "hero_2",
 sum(hero_id =   3 and player_slot < 128) as "hero_3",
@@ -227,5 +228,8 @@ sum(hero_id = 109 and player_slot >= 128) as "hero_221",
 sum(hero_id = 110 and player_slot >= 128) as "hero_222",
 sum(hero_id = 111 and player_slot >= 128) as "hero_223",
 sum(hero_id = 112 and player_slot >= 128) as "hero_224"
-FROM match_player mp
-GROUP BY match_id;
+FROM match m
+left join match_player mp
+on m.match_id = mp.match_id
+GROUP BY m.match_id
+LIMIT 200000;

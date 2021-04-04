@@ -21,11 +21,13 @@ def main():
         # mlflow.log_params({"delta": delta, "batch_id": batch_id})
 
     train_data = pd.read_pickle("datasets/interim/train_set.pkl")
+    # TODO: find a better way to remove those two cols
     X = train_data.loc[:, train_data.columns != "radiant_win"]
+    X = X.loc[:, X.columns != "match_id"]
     y = train_data["radiant_win"]
 
     # create model instance and train
-    clf = LogisticRegression(fit_intercept=True, random_state=0, penalty='none').fit(X, y)
+    clf = LogisticRegression(random_state=0).fit(X, y)
 
     # dump the model
     pickle.dump(clf, open("models/logistic_regression.pkl", 'wb'))

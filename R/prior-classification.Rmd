@@ -68,8 +68,10 @@ classification.
 ```{r loading-data}
 players_df <- read.csv("./data/players.csv")
 player_ratings_df <- read.csv("./data/player_ratings.csv")
-matches_df <- read.csv("./data/match.csv",
-                       colClasses = c(radiant_win = "logical"))
+matches_df <- read.csv(
+  "./data/match.csv",
+  colClasses = c(radiant_win = "logical")
+)
 
 hero_stats_df <- "./data/hero_stats.json" %>%
   jsonlite::fromJSON(flatten = TRUE) %>%
@@ -251,9 +253,9 @@ match_data <- matches_df %>%
   # join with the selected heroes vectors
   left_join(heroes_df, by = "match_id") %>%
   # join with true skill rankings
-  left_join(matches_player_rankings_df, by = "match_id") %>%
-  # join with the hero statistics
-  left_join(matches_hero_stats_df, by = "match_id") %>%
+  # left_join(matches_player_rankings_df, by = "match_id") %>%
+  # # join with the hero statistics
+  # left_join(matches_hero_stats_df, by = "match_id") %>%
   mutate(radiant_win = as.factor(ifelse(radiant_win, "yes", "no")))
 
 train_df <- match_data[train_indices, ]
@@ -356,20 +358,19 @@ ctrl <- trainControl(
   summaryFunction = twoClassSummary
 )
 
-
 best_predictors <- one_predictor_results %>%
   arrange(desc(Accuracy, Pvalue)) %>%
   # head(19) %>%
+  # just take all
   .$Predictor
 
 var_mod <- train(
   radiant_win ~ .,
   data = train_df,
   method = "glm",
-  metric = "ROC",
+  metric = "Accuracy",
   trControl = ctrl
 )
-
 
 rfe_ctrl <- rfeControl(
   functions = lrFuncs,
@@ -378,15 +379,15 @@ rfe_ctrl <- rfeControl(
   verbose = FALSE
 )
 
-lmProfile <- rfe(train_df[, best_predictors], train_df$radiant_win,
-                 sizes =  c(1:5, 10, 15, 20, 21),
-                 rfeControl = rfe_ctrl)
+# lmProfile <- rfe(
+# train_df[, best_predictors], train_df$radiant_win,
+#  sizes =  c(1:5, 10, 15, 20, 21),
+#  rfeControl = rfe_ctrl
+# )
 
-train_df$radiant_win %>% table %>% prop.table
-(0.481425 * var_mod$results$Spec + 0.518575 * var_mod$results$Sens)
+train_df$radiant_win %>% table() %>% prop.table()
+(0.480975 * var_mod$results$Spec + 0.519025 * var_mod$results$Sens)
 ```
-
-
 
 ### Train a model with 5 best features
 

@@ -22,16 +22,6 @@ MATCH_KEYS = [
     "game_mode"
 ]
 
-def to_row(match):
-    default = {
-        "gold": None,
-        "hero_healing": None,
-        "hero_damage": None,
-        "tower_damage": None
-    }
-
-    return tuple((match)[k] for k in MATCH_KEYS)
-
 if __name__ == "__main__":
     # database connections
     conn = sqlite3.connect(SQLITE_DATABASE_URL)
@@ -48,7 +38,7 @@ if __name__ == "__main__":
     place_holders = ",".join(["?"] * len(MATCH_KEYS))
     insert_query = "INSERT INTO match(%s) VALUES(%s);" % (cols_str, place_holders)
 
-    match_player_rows = [to_row(match) for match in matches]
+    match_player_rows = [tuple(match[k] for k in MATCH_KEYS) for match in matches]
 
     # execute the query and close the connection
     c.executemany(insert_query, match_player_rows)

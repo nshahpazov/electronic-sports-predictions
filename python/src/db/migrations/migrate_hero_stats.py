@@ -27,11 +27,11 @@ if __name__ == "__main__":
     # load the data from mongodb
     hero_stats_collection = db.benchmark.aggregate([{
         "$set": {
-        "result.hero_id": "$hero_id"
+            "result.hero_id": "$hero_id"
         }
-    },{
+    }, {
         "$replaceRoot": {
-        "newRoot": "$result"
+            "newRoot": "$result"
         }
     }])
 
@@ -47,7 +47,7 @@ if __name__ == "__main__":
 
     # execute the query and close the connection
     c.executemany(insert_query, hero_stats_rows);
-    print('We have inserted', c.rowcount, 'records to the table.')
+    print('We have inserted', c.rowcount, 'records to the table hero_stats.')
 
     conn.commit()
     conn.close()

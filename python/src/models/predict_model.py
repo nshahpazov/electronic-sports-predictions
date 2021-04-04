@@ -1,5 +1,4 @@
 from datetime import date, timedelta
-
 import mlflow
 import numpy as np
 import pandas as pd
@@ -11,10 +10,11 @@ LOGGER = logging.getLogger(__name__)
 
 def main():
     """Predict on test data
-    ...
     """
     test_data = pd.read_pickle("datasets/interim/test_set.pkl")
     X_test = test_data.loc[:, test_data.columns != "radiant_win"]
+    X_test = X_test.loc[:, X_test.columns != "match_id"]
+
     Y_test = test_data["radiant_win"]
 
     # create model instance and train

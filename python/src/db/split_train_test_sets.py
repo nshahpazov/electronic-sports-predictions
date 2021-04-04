@@ -33,8 +33,8 @@ def main(train_set_filepath, test_set_filepath, random_state, train_set_size):
 
     # TODO: load a query file for that
     # TODO: limit is only for testing, remove it in a later version
-    df = pd.read_sql_query("SELECT mh.*, radiant_win FROM match_heroes mh left join match;", con)
-    df = df.loc[:, df.columns != "match_id"]
+    df = pd.read_sql_query(match_heroes_sql, con)
+    # df = df.loc[:, df.columns != "match_id"]
 
     train_df, test_df = train_test_split(df, train_size=train_set_size, random_state=random_state)
 
