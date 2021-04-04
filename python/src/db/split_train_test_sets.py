@@ -11,7 +11,7 @@ import os
 load_dotenv(find_dotenv())
 
 # move those to the env file
-DEFAULT_TRAIN_SET_SIZE = 0.7
+DEFAULT_TRAIN_SET_SIZE = 0.8
 DEFAULT_RANDOM_STATE = 42
 DEFAULT_TRAIN_SET_PATH = "datasets/interim/train_set.pkl"
 DEFAULT_TEST_SET_PATH = "datasets/interim/test_set.pkl"
@@ -33,7 +33,7 @@ def main(train_set_filepath, test_set_filepath, random_state, train_set_size):
 
     # TODO: load a query file for that
     # TODO: limit is only for testing, remove it in a later version
-    df = pd.read_sql_query("SELECT mh.*, radiant_win FROM match_heroes mh left join match limit 400;", con)
+    df = pd.read_sql_query("SELECT mh.*, radiant_win FROM match_heroes mh left join match;", con)
     df = df.loc[:, df.columns != "match_id"]
 
     train_df, test_df = train_test_split(df, train_size=train_set_size, random_state=random_state)

@@ -7,10 +7,11 @@ load_dotenv(find_dotenv())
 
 MONGO_DATABASE_URL = os.environ.get("MONGO_DATABASE_URL")
 MONGO_DATABASE_NAME = os.environ.get("MONGO_DATABASE_NAME")
+SQLITE_DATABASE_URL = os.environ.get("SQLITE_DATABASE_URL")
 
 if __name__ == "__main__":
     # database connections
-    conn = sqlite3.connect('./datasets/db/dota.db')
+    conn = sqlite3.connect(SQLITE_DATABASE_URL)
     c = conn.cursor()
 
     client = MongoClient(MONGO_DATABASE_URL)
