@@ -25,7 +25,7 @@ def main():
     y = train_data["radiant_win"]
 
     # create model instance and train
-    clf = LogisticRegression(random_state=0).fit(X, y)
+    clf = LogisticRegression(fit_intercept=True, random_state=0, penalty='none').fit(X, y)
 
     # dump the model
     pickle.dump(clf, open("models/logistic_regression.pkl", 'wb'))
