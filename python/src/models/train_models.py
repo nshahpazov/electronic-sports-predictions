@@ -6,6 +6,7 @@ import pandas as pd
 import logging
 import pickle
 from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import StandardScaler
 
 LOGGER = logging.getLogger(__name__)
 
@@ -13,6 +14,7 @@ def main():
     """Generate training sets and traing models.
     ...
     """
+    scaler = StandardScaler()
 
     # mlflow.set_experiment("my-first-model-training")
 

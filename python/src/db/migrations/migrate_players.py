@@ -15,7 +15,7 @@ PLAYER_KEYS = [
     "lose", "solo_competitive_rank", "mmr_std_dev", "mmr_n"
 ]
 
-def to_row(player):
+def to_row(player) -> tuple:
     return tuple(({"mmr_std_dev": None, "mmr_n": None } | player)[k] for k in PLAYER_KEYS)
 
 

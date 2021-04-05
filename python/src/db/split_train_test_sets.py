@@ -7,6 +7,7 @@ import pandas as pd
 from dotenv import find_dotenv, load_dotenv
 from sklearn.model_selection import train_test_split
 import os
+from jinja2 import Template
 
 load_dotenv(find_dotenv())
 
@@ -29,18 +30,14 @@ def main(train_set_filepath, test_set_filepath, random_state, train_set_size):
     logger.info("creating train and test set data from raw data")
 
     con = sqlite3.connect(os.environ.get("SQLITE_DATABASE_URL"))
-    match_heroes_sql = open("src/db/pipeline/queries/get_match_heroes.sql").read()
+    all_predictors_sql = open("src/db/pipeline/queries/predictors.sql").read()
 
-    # TODO: load a query file for that
-    # TODO: limit is only for testing, remove it in a later version
-    df = pd.read_sql_query(match_heroes_sql, con)
-    # df = df.loc[:, df.columns != "match_id"]
-
+    df = pd.read_sql_query(all_predictors_sql, con)
     train_df, test_df = train_test_split(df, train_size=train_set_size, random_state=random_state)
 
     train_df.to_pickle(train_set_filepath)
     test_df.to_pickle(test_set_filepath)
 
-# if __name__ == '__main__':
-
-main()
+# execute the script
+if __name__ == '__main__':
+    main()

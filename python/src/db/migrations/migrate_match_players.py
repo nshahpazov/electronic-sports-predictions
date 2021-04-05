@@ -29,7 +29,7 @@ MATCH_PLAYER_KEYS = [
     "level"
 ]
 
-def to_row(player):
+def to_row(player) -> tuple:
     default = {
         "gold": None,
         "hero_healing": None,
