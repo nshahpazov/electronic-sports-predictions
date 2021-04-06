@@ -298,4 +298,4 @@ ON m.match_id = mp.match_id
 LEFT JOIN hero_characteristics hc
 ON hc.hero_id = mp.hero_id
 GROUP BY m.match_id
-LIMIT 200000;
+LIMIT 100000;

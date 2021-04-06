@@ -6,7 +6,7 @@ import pandas as pd
 import logging
 import pickle
 from sklearn.linear_model import LogisticRegression
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, ColumnTransformer
 
 LOGGER = logging.getLogger(__name__)
 
