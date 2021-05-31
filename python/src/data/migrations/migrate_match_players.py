@@ -14,6 +14,7 @@ MATCH_PLAYER_KEYS = [
     "match_id",
     "account_id",
     "player_slot",
+    "leaver_status",
     "hero_id",
     "gold",
     "deaths",
@@ -55,8 +56,6 @@ if __name__ == "__main__":
     }, {
         "$project": {match_player_key: 1 for match_player_key in MATCH_PLAYER_KEYS}
     }
-    # ,
-    # {"$limit": 10000}
     ])
 
     # prepare the sql query

@@ -142,3 +142,37 @@ help:
 		printf "\n"; \
 	}' \
 	| more $(shell test $(shell uname) = Darwin && echo '--no-init --raw-control-chars')
+
+split_train_test_only_draft:
+	python src/data/split_train_test_sets.py \
+		--has_played_heroes=True \
+		--train_set_filepath=datasets/interim/only_draft_train_set.parquet \
+		--test_set_filepath=datasets/interim/only_draft_test_set.parquet
+
+split_train_test_draft_and_roles:
+	python src/data/split_train_test_sets.py \
+		--has_played_heroes=True \
+		--has_roles=True \
+		--train_set_filepath=datasets/interim/draft_and_roles_train_set.parquet \
+		--test_set_filepath=datasets/interim/draft_and_roles_test_set.parquet
+
+split_train_test_all:
+	python src/data/split_train_test_sets.py \
+		--has_played_heroes=True \
+		--has_roles=True \
+		--has_hero_characteristics=True \
+		--train_set_filepath=datasets/interim/all_train_set.parquet \
+		--test_set_filepath=datasets/interim/all_test_set.parquet
+
+train_model_only_draft:
+	python src/models/train_modes.py \
+		--input_path=datasets/interim/only_draft_train_set.parquet \
+		--output_path=models/lr_only_draft.pkl
+
+train_model_all:
+	python src/models/train_models.py \
+		--input_path=datasets/interim/all_train_set.parquet \
+		--output_path=models/lr_all.pkl
+
+predict_model_all:
+	python src/models/predict_models.py --input_path=models/lr_all.pkl

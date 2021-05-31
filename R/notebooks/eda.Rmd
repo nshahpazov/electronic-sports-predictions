@@ -1,0 +1,92 @@
+---
+title: "Сравнение на някои променливи от двата различни наборa от данни"
+author: "Nikola Shahpazov"
+date: "5/30/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#### Свързване към двете бази данни
+
+```{r include=FALSE}
+library(tidyverse)
+library(dbplyr)
+library(DBI)
+```
+
+```{r}
+yang_connection <- dbConnect(RSQLite::SQLite(), "../../python/datasets/db/dota.db")
+conl_connection <- dbConnect(RSQLite::SQLite(), "../../python/datasets/db/dota2.db")
+
+df <- tbl(yang_connection, "match") %>%
+  mutate(data = "Yang") %>%
+  collect() %>%
+  bind_rows(
+    tbl(conl_connection, "match") %>%
+      mutate(data = "Conley") %>%
+      collect()
+  )
+```
+
+##### Процент игри в които отбор радиант са спечелили
+
+```{r}
+df %>%
+  group_by(data) %>%
+  summarise(radiant_win_percentage = sum(radiant_win) / length(radiant_win))
+```
+
+
+```{r}
+df %>%
+  filter(data == "Yang") %>%
+  ggplot(aes(x = as.factor(radiant_win == 1))) +
+  geom_bar(mapping = aes(y = (..count..) / sum(..count..)), fill = "steelblue") +
+  xlab("Радиант побеждава") +
+  ylab("Процент победи") +
+  ggtitle("Барплот на победите на Радиант при Yang Данни")
+```
+```{r}
+df %>%
+  filter(data == "Conley") %>%
+  ggplot(aes(x = as.factor(radiant_win == 1))) +
+  geom_bar(mapping = aes(y = (..count..) / sum(..count..)), fill = "steelblue") +
+  xlab("Радиант побеждава") +
+  ylab("Процент победи") +
+  ggtitle("Барплот на победите на Радиант при Conley Данни")
+```
+
+#### Плътности на времетраенето на мачовете
+
+```{r}
+df %>%
+  ggplot(mapping = aes(x = duration / 60, fill = data)) +
+  geom_density(alpha = 0.4) +
+  xlim(c(0, 80)) +
+  xlab("Времетраене на мач") +
+  ylab("Плътност") +
+  ggtitle("Емпирични плътности на времетраенето на мачовете")
+```
+
+#### Бележки
+
+### Performance of Machine Learning Algorithms in Predicting Game Outcome from Drafts in Dota 2
+
+При съответната статия се взимат се данни за 5,071,858 игри от 11ти Февр 2016 10:50:04  до 2ри Март 2016 14:07 часа, като се взимат предвид различните видове нива на играчите.
+В периода в който са взети данните няма никакви основни промени в играта които да бъдат експлоатирани от 
+играчите и битките да са неравностойни.
+
+Данните са разбити на три категории според ММР рейтинг, като съответните модели са изпробвани върху 
+всяка една от групите.
+
+Използват три представяния на feature vector
+
+* bag of heroes - като предишните подходи
+
+
+
+
+

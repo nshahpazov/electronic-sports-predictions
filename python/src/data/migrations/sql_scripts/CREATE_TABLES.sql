@@ -82,6 +82,7 @@ CREATE TABLE match_player (
   match_id INTEGER,
   account_id INTEGER,
   player_slot INTEGER,
+  leaver_status INTEGER,
   hero_id INTEGER,
   gold INTEGER,
   deaths INTEGER,
