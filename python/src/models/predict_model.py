@@ -1,15 +1,15 @@
 from datetime import date, timedelta
-import mlflow
-import numpy as np
+# import mlflow
+# import numpy as np
 import pandas as pd
 import logging
 import pickle
-from sklearn.linear_model import LogisticRegression
 import pickle
+import xgboost as xgb
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 from dotenv import find_dotenv, load_dotenv
-import os
+from sklearn.metrics import roc_auc_score
 import click
 from sklearn.compose import ColumnTransformer
 
@@ -68,15 +68,29 @@ def main(model_path, test_set_path):
         ]))
     ])
 
-    X_test = pipeline.fit_transform(test_df.drop(["radiant_win", "match_id"], axis=1))
-    # X_test = test_df.drop(["radiant_win", "match_id"], axis=1)
+    # for now train only on the draft features
+
+    train_df = pd.read_parquet("datasets/interim/train_set_all.parquet")
+    pipeline.fit(train_df.drop(["radiant_win", "match_id"], axis=1))
+
+    # X_test = pipeline.transform(test_df.drop(["radiant_win", "match_id"], axis=1))
+    X_test = test_df.drop(["radiant_win", "match_id"], axis=1)
+
     y_test = test_df["radiant_win"]
 
     # create model instance and train
-    clf = pickle.load(open(model_path, 'rb'))
+    clf1 = pickle.load(open(model_path, 'rb'))
 
-    result1 = clf.score(X_test, y_test)
+    result1 = clf1.score(X_test, y_test)
     print(result1)
+
+    # testing xgboost model
+    # bst = pickle.load(open("./models/xgboost_only_draft.pkl", 'rb'))
+    # dtest = xgb.DMatrix(X_test)
+
+    # preds = bst.predict(dtest)
+    # print((preds > 0.5) == y_test)
+    # ('ROC AUC Score', roc_auc_score(y_test, preds))
 
 if __name__ == '__main__':
     main()

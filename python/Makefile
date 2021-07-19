@@ -145,16 +145,11 @@ help:
 
 split_train_test_only_draft:
 	python src/data/split_train_test_sets.py \
-		--has_played_heroes=True \
+		--has_played_heroes=1 \
+		--has_roles=0 \
+		--has_hero_characteristics=0 \
 		--train_set_filepath=datasets/interim/only_draft_train_set.parquet \
 		--test_set_filepath=datasets/interim/only_draft_test_set.parquet
-
-split_train_test_draft_and_roles:
-	python src/data/split_train_test_sets.py \
-		--has_played_heroes=True \
-		--has_roles=True \
-		--train_set_filepath=datasets/interim/draft_and_roles_train_set.parquet \
-		--test_set_filepath=datasets/interim/draft_and_roles_test_set.parquet
 
 split_train_test_all:
 	python src/data/split_train_test_sets.py \
@@ -175,4 +170,6 @@ train_model_all:
 		--output_path=models/lr_all.pkl
 
 predict_model_all:
-	python src/models/predict_models.py --input_path=models/lr_all.pkl
+	python src/models/predict_model.py \
+	--model_path=models/lr_all.pkl \
+	--test_set_path=datasets/interim/all_test_set.parquet

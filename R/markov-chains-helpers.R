@@ -27,23 +27,26 @@ construct_transition_matrix <- function (games, nbin = 20, time = 100) {
   tm / rowSums(tm)
 }
 
-get_trajectory_probability <- function (bm, tm, t = 1, window = 5) {
+# tm = transition matrix, bm = bin matrix
+get_trajectory_probability <- function(bm, tm, t = 1, window = 5) {
   probs <- c()
   for (i in 1:nrow(bm)) {
     prob <- 1
     for (j in t:t + window - 1) {
+      # take the probability of moving from bm[]
       current <- tm[bm[i, j], bm[i , j + 1]]
       prob <- prob * ifelse(is.na(current), 1, current)
     }
+    # I'm multiplying the probabilities
     probs[i] <- prob
   }
   probs
 }
 
 acc <- function (test_set, tsbm, winners, losers, t) {
+  browser()
   d_win <- get_trajectory_probability(tsbm, winners, t = t, window = 5)
   d_los <- get_trajectory_probability(tsbm, losers, t = t, window = 5)
-
   mean(0 + ((d_win > d_los) == as.logical(test_set$radiant_win)), na.rm = TRUE)
 }
 

@@ -245,6 +245,7 @@ matches_hero_stats_df <- select(matches_hero_stats_df, match_id, stat_cols)
 We join all the dataframes we have feature engineered so far into a single 
 dataframe containing all. Then we split the data into training and test sets 
 in a 80% \ 20% manner.
+
 ```{r}
 train_indices <- createDataPartition(heroes_df$match_id, p = .8, list = FALSE)
 

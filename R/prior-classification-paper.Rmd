@@ -1,0 +1,35 @@
+---
+title: "prior-classification-paper"
+author: "Nikola Shahpazov"
+date: "6/10/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r package-setup, message=FALSE, warning=FALSE, include=FALSE, results='hide'}
+library("tidyverse")
+library("lubridate")
+library("dbplyr")
+library("DBI")
+```
+
+```{r load-helper-files}
+source("./helpers.R")
+source("./prior-helpers.R")
+```
+
+### Loading the data
+
+```{r}
+con <- dbConnect(RSQLite::SQLite(), "../python/datasets/db/dota.db")
+
+draft_df <- tbl(con, "played_heroes") %>%
+  filter(hero_226 > 0) %>%
+  left_join(select(tbl(con, "match"), match_id, radiant_win, start_time))
+
+draft_df %>%
+  head(10)
+```

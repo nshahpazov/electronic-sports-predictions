@@ -74,19 +74,40 @@ SELECT
   {%- endfor %}
 {%- endif -%}
 
+-- mmr ratings
+-- try with separate for now
+{%- if mmr_ratings -%}
+  (case when player_slot = 0 then p.mmr_estimate end) player_1_mmr,
+  (case when player_slot = 1 then p.mmr_estimate end) player_2_mmr,
+  (case when player_slot = 2 then p.mmr_estimate end) player_3_mmr,
+  (case when player_slot = 3 then p.mmr_estimate end) player_4_mmr,
+  (case when player_slot = 4 then p.mmr_estimate end) player_5_mmr,
+  (case when player_slot = 5 then p.mmr_estimate end) player_6_mmr,
+  (case when player_slot = 6 then p.mmr_estimate end) player_7_mmr,
+  (case when player_slot = 7 then p.mmr_estimate end) player_8_mmr,
+  (case when player_slot = 8 then p.mmr_estimate end) player_9_mmr,
+  (case when player_slot = 9 then p.mmr_estimate end) player_10_mmr,
+{%- endif -%}
+
 -- unique match id
 mp.match_id,
 
 -- response variable
-m.radiant_win
+m.radiant_win,
+
+-- start time (it's important for the splitting o f train\test sets)
+m.start_time
 
 FROM match m
 LEFT JOIN match_player mp
 ON m.match_id = mp.match_id
+LEFT JOIN player p
+ON mp.account_id = p.account_id
 LEFT JOIN hero_characteristics hc
 ON hc.hero_id = mp.hero_id
 GROUP BY m.match_id
 having SUM(MP.leaver_status) = 0
+order by m.start_time
 {% if limit %}
   LIMIT {{limit}}
 {% endif %};

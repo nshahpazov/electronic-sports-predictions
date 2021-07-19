@@ -15,6 +15,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(dbplyr)
 library(DBI)
+library(gridExtra)
 ```
 
 ```{r}
@@ -41,23 +42,34 @@ df %>%
 
 
 ```{r}
-df %>%
+g1 <- df %>%
   filter(data == "Yang") %>%
   ggplot(aes(x = as.factor(radiant_win == 1))) +
   geom_bar(mapping = aes(y = (..count..) / sum(..count..)), fill = "steelblue") +
   xlab("Радиант побеждава") +
   ylab("Процент победи") +
-  ggtitle("Барплот на победите на Радиант при Yang Данни")
-```
-```{r}
-df %>%
+  ggtitle("Yang")
+
+g2 <- df %>%
   filter(data == "Conley") %>%
   ggplot(aes(x = as.factor(radiant_win == 1))) +
-  geom_bar(mapping = aes(y = (..count..) / sum(..count..)), fill = "steelblue") +
+  geom_bar(
+    mapping = aes(y = (..count..) / sum(..count..)), fill = "orange") +
   xlab("Радиант побеждава") +
   ylab("Процент победи") +
-  ggtitle("Барплот на победите на Радиант при Conley Данни")
+  ggtitle("Conley")
+
+g3 <- grid.arrange(g2, g1, nrow = 1)
+g3
+
+ggsave("../images/conley-yang-comparison.png", g3, width = 10, height = 6)
 ```
+
+```{r}
+
+
+```
+
 
 #### Плътности на времетраенето на мачовете
 
@@ -86,6 +98,38 @@ df %>%
 
 * bag of heroes - като предишните подходи
 
+
+```{r}
+
+statement <- "SELECT t1.account_id, 
+t1.solo_competitive_rank as 'last_solo_comp_rank', 
+t1.competitive_rank, 
+t1.time, t3.solo_competitive_rank as 'solo_comp_rank_in_player_tbl',
+t3.mmr_estimate as 'mmr_estimate_in_player_tbl'
+FROM  player_match_rating t1
+INNER JOIN (
+    SELECT account_id, MAX(time) time
+    FROM player_match_rating
+    GROUP BY account_id
+) t2
+ON t1.account_id = t2.account_id AND t1.time = t2.time
+left join player t3
+on t1.account_id = t3.account_id ;"
+
+rs <- dbSendQuery(yang_connection, statement)
+comp_df <- dbFetch(rs)
+
+comp_df %>%
+  filter(!is.na(solo_competitive_rank)) %>%
+  mutate(diff = solo_competitive_rank - mmr_estimate) %>%
+  ggplot(mapping = aes(x = diff)) +
+  geom_density()
+
+comp_df %>%
+  filter(!is.na(solo_competitive_rank)) %>%
+  {t.test(.$solo_competitive_rank, .$mmr_estimate)}
+```
+comp_df
 
 
 

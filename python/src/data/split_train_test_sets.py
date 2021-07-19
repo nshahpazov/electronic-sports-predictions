@@ -11,18 +11,13 @@ load_dotenv(find_dotenv())
 
 # move those to the env file
 DEFAULT_TRAIN_SET_SIZE = 0.8
-DEFAULT_RANDOM_STATE = 42
-DEFAULT_HAS_PLAYED_HEROES = True
-DEFAULT_HAS_ROLES = False
-DEFAULT_HAS_PLAYED_HEROES_CHARACTERISTICS = False
 
-DEFAULT_TRAIN_SET_PATH = "datasets/interim/train_set.parquet"
-DEFAULT_TEST_SET_PATH = "datasets/interim/test_set.parquet"
+DEFAULT_TRAIN_SET_PATH = "datasets/interim/only_draft_train_set.parquet"
+DEFAULT_TEST_SET_PATH = "datasets/interim/only_draft_test_set.parquet"
 
 @click.command()
 @click.option('--train_set_filepath', default=DEFAULT_TRAIN_SET_PATH, type=click.Path())
 @click.option('--test_set_filepath', default=DEFAULT_TEST_SET_PATH, type=click.Path())
-@click.option('--random_state', default=DEFAULT_RANDOM_STATE, type=click.INT)
 @click.option('--train_set_size', default=DEFAULT_TRAIN_SET_SIZE, type=click.FLOAT)
 @click.option('--has_played_heroes', default=True)
 @click.option('--has_hero_characteristics', default=False)
@@ -31,7 +26,6 @@ DEFAULT_TEST_SET_PATH = "datasets/interim/test_set.parquet"
 def main(
     train_set_filepath,
     test_set_filepath,
-    random_state,
     train_set_size,
     has_played_heroes,
     has_hero_characteristics,
@@ -51,10 +45,19 @@ def main(
         has_played_heroes=has_played_heroes,
         has_hero_characteristics=has_hero_characteristics,
         has_roles=has_roles,
-        limit=limit
+        limit=10,
+        mmr_ratings=True
     )
+
     df = pd.read_sql_query(rendered_sql, con)
-    train_df, test_df = train_test_split(df, train_size=train_set_size, random_state=random_state)
+
+    train_df, test_df = train_test_split(
+        df,
+        train_size=train_set_size,
+        test_size=0.2,
+        shuffle=False,
+        stratify=None
+    )
 
     train_df.to_parquet(train_set_filepath)
     test_df.to_parquet(test_set_filepath)

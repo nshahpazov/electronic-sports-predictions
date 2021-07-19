@@ -6,31 +6,10 @@ output: html_document
 ---
 
 ```{r package-setup, message=FALSE, warning=FALSE, include=FALSE, results='hide'}
-## Create the list of required packages
-list.of.packages <- c(
-  # utility libraries
-  "Metrics",
-  "reshape",
-  "glue",
-  "tidyverse",
-  "caret",
-  "recipes",
-  "purrr"
-)
+library("tidyverse")
+library("caret")
+library("gridExtra")
 
-new.packages <- list.of.packages[(
-  !list.of.packages %in% installed.packages() |
-   list.of.packages %in% old.packages()[ ,"Package"]
-)]
-
-if (length(new.packages)) {
-  install.packages(new.packages, repos = "http://cran.us.r-project.org")
-}
-
-## Load all necessary packages in RAM (working environment)
-lapply(list.of.packages, require, character.only = TRUE)
-
-rm(list.of.packages, new.packages)
 ```
 
 ```{r constants}
@@ -90,28 +69,47 @@ test_set <- diffs_by_time_df[-train_indices, ]
 ```{r train-time-windows-lr, include=FALSE}
 tc <- trainControl(method = "cv", number = 3)
 
+# Стандартизираме данните
 train_set_std <- standardize_time_df(train_set)
 test_set_std <- standardize_time_df(test_set)
 
-# slr_gld <- train_lr(data = train_set_std, cols = WINDOW_COLS[1], control = tc)
+slr_gld <- train_lr(data = train_set_std, cols = WINDOW_COLS[1], control = tc)
 slr_glh <- train_lr(data = train_set_std, cols = WINDOW_COLS[-2], control = tc)
+slr_ge <- train_lr(data = train_set_std, cols = WINDOW_COLS[-3], control = tc)
+slr_all <- train_lr(data = train_set_std, cols = WINDOW_COLS, control = tc)
 
 lr_models <- list(
-  # "slr_gld" = slr_gld,
-  "slr_glh" = slr_glh
+  "Злато" = slr_gld,
+  "Злато и Опит" = slr_ge,
+  "Злато и Удари" = slr_glh,
+  "Злато, Опит и Удари" = slr_all
 )
 ```
 
 ### Explore Cross Validation Test Accuracy
 
 ```{r plot-cv-acuracy}
-lr_models %>%
+lr_accuracies <- lr_models %>%
   map(~imap(., ~.$results$Accuracy)) %>%
   imap(~data.frame(accuracy = unlist(.), time = 6:101, model = .y)) %>%
-  bind_rows() %>%
+  bind_rows() 
+
+g <- lr_accuracies %>%
   ggplot(mapping = aes(x = time, y = accuracy, color = model)) +
   geom_line() +
-  ggtitle("Training set CV Accuracy")
+  ggtitle("Трениране на различни модели") +
+  xlab("Време") +
+  ylab("Точност") +
+  theme(legend.position = "bottom")
+
+g
+
+ggsave(
+  "images/real-time-predictors.png",
+  g,
+  width = 10,
+  height = 6
+)
 ```
 
 We see that SLR with gold and last hits (gold is correlated with xp) behaves the best till the 
@@ -137,7 +135,10 @@ test_performance %>%
 We see that the test accuracy behaves similarly to the test set cv accuracy from above.
 
 ### Markov Chains Model
+
 ```{r markov-chain-model, message=FALSE, warning=FALSE}
+
+library(gridExtra)
 # create winners transition matrix
 winners_tm <- train_set %>%
   filter(as.logical(radiant_win)) %>%
@@ -151,28 +152,38 @@ losers_tm <-  train_set %>%
   construct_transition_matrix(nbin = NBIN)
 
 # plot winners transition matrix
-winners_tm %>%
+g1 <- winners_tm %>%
   matrix_to_df() %>%
   ggplot(mapping = aes(row, col, fill = value)) +
     geom_tile() +
     geom_text(aes(label = round(value, 1))) +
-    ggtitle("Transition changes for the Winning team in the train set") +
-    xlab("Gold Bin States") +
-    ylab("Gold Bin States")
+    ggtitle("Емпирични Преходни Вероятности за Победителя") +
+    xlab("До Клетка със Злато (j)") +
+    ylab("От Клетка със Злато (i)")
 
 # plot losers transition matrix
-losers_tm %>%
+g2 <- losers_tm %>%
   matrix_to_df() %>%
   ggplot(mapping = aes(row, col, fill = value)) + 
     geom_tile() +
     geom_text(aes(label = round(value, 1))) +
-    ggtitle("Transition changes for the Losing team in the train set") +
-    xlab("Gold Bin States") +
-    ylab("Gold Bin States")
+    ggtitle("Емпирични Преходни Вероятности за Губещия") +
+    xlab("До Клетка със Злато (j)") +
+    ylab("От Клетка със Злато (i)")
+
+g3 <- grid.arrange(g1, g2, ncol = 2)
+
+ggsave(
+  "images/markov-chain-transition-probabilities.png",
+  g3,
+  width = 10,
+  height = 6
+)
+
 ```
 
-
 ### Markov Chain model with a PCA-generated state space
+
 ```{r markov-pca, include=FALSE}
 pca_data <- diffs_by_time_df %>%
   standardize_time_df() %>%
@@ -216,18 +227,18 @@ losers_pca_tm %>%
 
 ```{r markov-chains-model-predictions, echo=FALSE}
 tsbm <- as_binned_matrix(test_set, nbin = NBIN)
-tsbm_pca <- pca_test_set %>% as_binned_matrix(nbin = NBIN, feature = "pc")
+# tsbm_pca <- pca_test_set %>% as_binned_matrix(nbin = NBIN, feature = "pc")
 
-pca_mc_accuracies <- data.frame(
-  accuracy = unlist(imap(1:80, ~acc(test_set, tsbm_pca, winners_pca_tm, losers_pca_tm, .x))),
-  time = 1:80,
-  model = "MC PCA"
-)
+# pca_mc_accuracies <- data.frame(
+#   accuracy = unlist(imap(1:80, ~acc(test_set, tsbm_pca, winners_pca_tm, losers_pca_tm, .x))),
+#   time = 1:80,
+#   model = "MC PCA"
+# )
 
 mc_accuracies <- data.frame(
   accuracy = unlist(imap(1:80, ~acc(test_set, tsbm, winners_tm, losers_tm, .x))),
   time = 1:80,
-  model = "MC"
+  model = "Марковска Верига"
 )
 
 benchmark_accuracies <- test_set %>%
@@ -246,12 +257,28 @@ bind_rows(
 ggplot(mapping = aes(x = time, y = accuracy, color = model)) +
 geom_line() +
 ggtitle("Test Set Accuracy")
+
+
+g_logistic_and_mc <- lr_accuracies %>%
+  filter(model == "Злато и Удари") %>%
+  mutate(model = "Логистична Регресия със Злато и Удари") %>%
+  rbind("Марковска Верига" = mc_accuracies) %>%
+  filter(time <= 80) %>%
+  ggplot(mapping = aes(x = time, y = accuracy, color = model)) +
+  geom_line() +
+  ggtitle("Точност по време на МВ и ЛР") +
+  xlab("Време") +
+  ylab("Точност") +
+  theme(legend.position = "bottom")
+
+ggsave(
+  "images/lr-and-mc.png",
+  g_logistic_and_mc,
+  width = 10,
+  height = 6
+)
 ```
 
-```{r nbe}
-
-
-```
 
 ### Notes
 
