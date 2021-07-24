@@ -9,12 +9,12 @@ output: html_document
 library("tidyverse")
 library("caret")
 library("gridExtra")
-
+library("reshape2")
 ```
 
 ```{r constants}
 WINDOW_COLS <- c("gold_difference", "xp_difference", "lh_difference")
-NBIN <- 8
+NBIN <- 12
 ```
 
 ```{r load-inner-modules}
@@ -70,20 +70,25 @@ test_set <- diffs_by_time_df[-train_indices, ]
 tc <- trainControl(method = "cv", number = 3)
 
 # Стандартизираме данните
-train_set_std <- standardize_time_df(train_set)
-test_set_std <- standardize_time_df(test_set)
+train_set_std <- standardize_time_df(train_set) %>%
+  filter(is.na(gold_difference_50))
+test_set_std <- standardize_time_df(test_set) %>%
+  filter(is.na(gold_difference_50))
 
 slr_gld <- train_lr(data = train_set_std, cols = WINDOW_COLS[1], control = tc)
-slr_glh <- train_lr(data = train_set_std, cols = WINDOW_COLS[-2], control = tc)
+slr_glh <- train_lr(data = train_set_std, cols = WINDOW_COLS[-2], control = tc, interval = 0:50)
 slr_ge <- train_lr(data = train_set_std, cols = WINDOW_COLS[-3], control = tc)
 slr_all <- train_lr(data = train_set_std, cols = WINDOW_COLS, control = tc)
 
+dt_all <- train_dt(data = train_set_std, cols = WINDOW_COLS, control = tc)
+
 lr_models <- list(
-  "Злато" = slr_gld,
-  "Злато и Опит" = slr_ge,
-  "Злато и Удари" = slr_glh,
-  "Злато, Опит и Удари" = slr_all
+  # "Злато" = slr_gld,
+  # "Злато и Опит" = slr_ge,
+  "Злато и Удари" = slr_glh
+  # "Злато, Опит и Удари" = slr_all
 )
+
 ```
 
 ### Explore Cross Validation Test Accuracy
@@ -91,7 +96,7 @@ lr_models <- list(
 ```{r plot-cv-acuracy}
 lr_accuracies <- lr_models %>%
   map(~imap(., ~.$results$Accuracy)) %>%
-  imap(~data.frame(accuracy = unlist(.), time = 6:101, model = .y)) %>%
+  imap(~data.frame(accuracy = unlist(.), time = 6:39, model = .y)) %>%
   bind_rows() 
 
 g <- lr_accuracies %>%
@@ -117,15 +122,19 @@ We see that SLR with gold and last hits (gold is correlated with xp) behaves the
 there aren't a lot of matches then, or the matches are very even.
 
 ```{r prediction-accuracies}
-test_performance <- lr_models %>%
-  imap(
-    ~data.frame(
-      accuracy = get_test_accuracies(., test_set_std, interval = 1:20),
-      time = 1:20,
-      model = .y
-    )
-  ) %>%
-  bind_rows()
+# test_performance <- lr_models %>%
+#   imap(
+#     ~data.frame(
+#       accuracy = get_test_accuracies(., test_set_std, interval = 1:60),
+#       time = 1:60,
+#       model = .y
+#     )
+#   ) %>%
+#   bind_rows()
+
+library(Metrics)
+
+get_test_accuracies(lr_accuracies)
 
 test_performance %>%
   ggplot(mapping = aes(x = time, y = accuracy, color = model)) +
@@ -137,20 +146,81 @@ We see that the test accuracy behaves similarly to the test set cv accuracy from
 ### Markov Chains Model
 
 ```{r markov-chain-model, message=FALSE, warning=FALSE}
-
-library(gridExtra)
 # create winners transition matrix
-winners_tm <- train_set %>%
+NBIN <- 60
+MINUTES <- 1:40
+
+train_set2 <- train_set %>%
+  select(match_id, radiant_win, starts_with("gold")) %>%
+  # filter(!is.na(gold_difference_40)) %>%
+  filter(is.na(gold_difference_42)) %>%
+  .[, 1:42]
+
+test_set2 <- test_set %>%
+  select(match_id, radiant_win, starts_with("gold")) %>%
+  # filter(!is.na(gold_difference_40)) %>%
+  filter(is.na(gold_difference_42)) %>%
+  .[, 1:42]
+
+winners_tm <- train_set2 %>%
   filter(as.logical(radiant_win)) %>%
-  as_binned_matrix(nbin = NBIN) %>%
+  as_binned_matrix(nbin = NBIN, minutes = MINUTES) %>%
   construct_transition_matrix(nbin = NBIN)
+
+# TODO: think of some way to use turnouts (strong jumps in gold)
+# TODO: explore, what are the number of turnouts for winning teams?
+# TODO: add kills per min
 
 # create losers transition matrix
-losers_tm <-  train_set %>%
+losers_tm <- train_set2 %>%
   filter(!as.logical(radiant_win)) %>%
-  as_binned_matrix(nbin = NBIN) %>%
+  as_binned_matrix(nbin = NBIN, minutes = MINUTES) %>%
   construct_transition_matrix(nbin = NBIN)
 
+test_set_bin_matrix <- as_binned_matrix(test_set2, nbin = NBIN, minutes = MINUTES)
+# tsbm_pca <- pca_test_set %>% as_binned_matrix(nbin = NBIN, feature = "pc")
+
+# pca_mc_accuracies <- data.frame(
+#   accuracy = unlist(imap(1:80, ~acc(test_set, tsbm_pca, winners_pca_tm, losers_pca_tm, .x))),
+#   time = 1:80,
+#   model = "MC PCA"
+# )
+
+# test_set_bin_matrix[, 40]
+
+# get_mc_accuracy(test_set2, test_set_bin_matrix, winners_tm, losers_tm, 35)
+
+mc_accuracies <- data.frame(
+  accuracy = unlist(
+    imap(6:39, ~get_mc_accuracy(test_set2, test_set_bin_matrix, winners_tm, losers_tm, .x))
+  ),
+  time = 6:39,
+  model = "Марковска Верига"
+)
+
+g14 <- data.frame(
+  model = "Логистична Регресия със Злато и Удари",
+  accuracy = unlist(map(slr_glh, ~.x$results$Accuracy))[6:40],
+  time = 6:40
+) %>%
+  bind_rows(mc_accuracies) %>%
+  ggplot(mapping = aes(x = time, y = accuracy, color = model)) +
+  geom_line() +
+  ggtitle("Точност по време на МВ и ЛР върху къси игри") +
+  xlab("Време") +
+  ylab("Точност") +
+  theme(legend.position = "bottom")
+
+ggsave(
+  "images/markov-chain-transition-probabilities-short.png",
+  g14,
+  width = 10,
+  height = 6
+)
+```
+
+
+```{r markov-chain-model, message=FALSE, warning=FALSE}
 # plot winners transition matrix
 g1 <- winners_tm %>%
   matrix_to_df() %>%
@@ -172,6 +242,8 @@ g2 <- losers_tm %>%
     ylab("От Клетка със Злато (i)")
 
 g3 <- grid.arrange(g1, g2, ncol = 2)
+g1
+g2
 
 ggsave(
   "images/markov-chain-transition-probabilities.png",
@@ -182,51 +254,9 @@ ggsave(
 
 ```
 
-### Markov Chain model with a PCA-generated state space
-
-```{r markov-pca, include=FALSE}
-pca_data <- diffs_by_time_df %>%
-  standardize_time_df() %>%
-  pca_transform(cols = WINDOW_COLS[-2])
-
-pca_data$match_id <- diffs_by_time_df$match_id
-pca_data$radiant_win <- diffs_by_time_df$radiant_win
-
-pca_train_set <- pca_data[train_indices, ]
-pca_test_set <- pca_data[-train_indices, ]
-
-winners_pca_tm <- pca_train_set %>%
-  filter(as.logical(radiant_win)) %>%
-  as_binned_matrix(nbin = NBIN, feature = "pc") %>%
-  construct_transition_matrix(nbin = NBIN)
-
-# create losers transition matrix for pca data
-losers_pca_tm <-  pca_train_set %>%
-  filter(!as.logical(radiant_win)) %>%
-  as_binned_matrix(nbin = NBIN, feature = "pc") %>%
-  construct_transition_matrix(nbin = NBIN)
-
-winners_pca_tm %>%
-  matrix_to_df() %>%
-  ggplot(mapping = aes(row, col, fill = value)) + 
-    geom_tile() +
-    geom_text(aes(label = round(value, 1))) +
-    ggtitle("Transition changes for the winning team in the train set") +
-    xlab("PCA Bin States") +
-    ylab("PCA Bin States")
-
-losers_pca_tm %>%
-  matrix_to_df() %>%
-  ggplot(mapping = aes(row, col, fill = value)) + 
-    geom_tile() +
-    geom_text(aes(label = round(value, 1))) +
-    ggtitle("Transition changes for the losing team in the train set") +
-    xlab("PCA Bin States") +
-    ylab("PCA Bin States")
-```
 
 ```{r markov-chains-model-predictions, echo=FALSE}
-tsbm <- as_binned_matrix(test_set, nbin = NBIN)
+test_set_bin_matrix <- as_binned_matrix(test_set2, nbin = NBIN, minutes = MINUTES)
 # tsbm_pca <- pca_test_set %>% as_binned_matrix(nbin = NBIN, feature = "pc")
 
 # pca_mc_accuracies <- data.frame(
@@ -235,30 +265,38 @@ tsbm <- as_binned_matrix(test_set, nbin = NBIN)
 #   model = "MC PCA"
 # )
 
+# test_set_bin_matrix[, 40]
+
+# get_mc_accuracy(test_set2, test_set_bin_matrix, winners_tm, losers_tm, 35)
+
 mc_accuracies <- data.frame(
-  accuracy = unlist(imap(1:80, ~acc(test_set, tsbm, winners_tm, losers_tm, .x))),
-  time = 1:80,
+  accuracy = unlist(
+    imap(6:39, ~get_mc_accuracy(test_set2, test_set_bin_matrix, winners_tm, losers_tm, .x))
+  ),
+  time = 6:39,
   model = "Марковска Верига"
 )
 
-benchmark_accuracies <- test_set %>%
-  mutate_at(vars(starts_with("gold")), ~as.numeric((. > 0) == radiant_win)) %>%
-  summarise_at(vars(starts_with("gold")), mean, na.rm = TRUE) %>%
-  pivot_longer(cols = gold_difference_1:gold_difference_100,
-               values_to = "accuracy") %>%
-  mutate(time = 1:100, model = "Benchmark")
+# benchmark_accuracies <- test_set2 %>%
+#   mutate_at(vars(starts_with("gold")), ~as.numeric((. > 0) == radiant_win)) %>%
+#   summarise_at(vars(starts_with("gold")), mean, na.rm = TRUE) %>%
+#   pivot_longer(cols = gold_difference_6:gold_difference_39, values_to = "accuracy") %>%
+#   mutate(time = 6:39, model = "Benchmark")
 
-bind_rows(
-  # test_performance[1:80, ],
-  mc_accuracies,
-  pca_mc_accuracies,
-  benchmark_accuracies
-) %>%
-ggplot(mapping = aes(x = time, y = accuracy, color = model)) +
-geom_line() +
-ggtitle("Test Set Accuracy")
+# TODO: train logistic regression only on 40 minutes matches and plot again to see the difference
+
+# bind_rows(
+#   # test_performance[1:35, ],
+#   mc_accuracies,
+#   benchmark_accuracies
+# ) %>%
+# ggplot(mapping = aes(x = time, y = accuracy, color = model)) +
+# geom_line() +
+# ggtitle("Test Set Accuracy")
+```
 
 
+```{r markov-chains-model-predictions, echo=FALSE}
 g_logistic_and_mc <- lr_accuracies %>%
   filter(model == "Злато и Удари") %>%
   mutate(model = "Логистична Регресия със Злато и Удари") %>%
@@ -270,6 +308,9 @@ g_logistic_and_mc <- lr_accuracies %>%
   xlab("Време") +
   ylab("Точност") +
   theme(legend.position = "bottom")
+
+
+g_logistic_and_mc
 
 ggsave(
   "images/lr-and-mc.png",
@@ -292,3 +333,46 @@ important in early stages of the game.
 * Tried different quantile bins for the gold states and seems that 8 gives better results than 10
 
 * Tried PCA on a transformation of gold and last hits but the Markov Chain seems to be performing slightly worse than the original
+
+### Markov Chain model with a PCA-generated state space
+
+```{r markov-pca, include=FALSE}
+pca_data <- diffs_by_time_df %>%
+  standardize_time_df() %>%
+  pca_transform(cols = WINDOW_COLS[-2])
+
+pca_data$match_id <- diffs_by_time_df$match_id
+pca_data$radiant_win <- diffs_by_time_df$radiant_win
+
+pca_train_set <- pca_data[train_indices, ]
+pca_test_set <- pca_data[-train_indices, ]
+
+winners_pca_tm <- pca_train_set %>%
+  filter(as.logical(radiant_win)) %>%
+  as_binned_matrix(nbin = NBIN, feature = "pc") %>%
+  construct_transition_matrix(<- = NBIN)
+
+# create losers transition matrix for pca data
+losers_pca_tm <- pca_train_set %>%
+  filter(!as.logical(radiant_win)) %>%
+  as_binned_matrix(nbin = NBIN, feature = "pc") %>%
+  construct_transition_matrix(nbin = NBIN)
+
+winners_pca_tm %>%
+  matrix_to_df() %>%
+  ggplot(mapping = aes(row, col, fill = value)) + 
+    geom_tile() +
+    geom_text(aes(label = round(value, 1))) +
+    ggtitle("Transition changes for the winning team in the train set") +
+    xlab("PCA Bin States") +
+    ylab("PCA Bin States")
+
+losers_pca_tm %>%
+  matrix_to_df() %>%
+  ggplot(mapping = aes(row, col, fill = value)) + 
+    geom_tile() +
+    geom_text(aes(label = round(value, 1))) +
+    ggtitle("Transition changes for the losing team in the train set") +
+    xlab("PCA Bin States") +
+    ylab("PCA Bin States")
+```

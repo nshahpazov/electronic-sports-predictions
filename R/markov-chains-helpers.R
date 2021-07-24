@@ -1,20 +1,21 @@
-get_bins <- function (df, nbin = 20, feature = "gold_difference") {
-  df %>%
+get_bins <- function (df, nbin = 20, feature = "gold_difference", minutes = 1:ncol(df)) {
+  x <- df %>%
     select(contains(feature)) %>%
+    .[, minutes] %>%
     as.matrix() %>%
     c() %>%
     quantile(na.rm = TRUE, probs = seq(0, 1, 1 / nbin))
 }
 
-as_binned_matrix <- function (df, nbin = 20, feature = "gold_difference") {
-  bins <- get_bins(df, nbin, feature)
+as_binned_matrix <- function (df, nbin = 20, feature = "gold_difference", minutes = 1:ncol(df)) {
   df %>%
     select(contains(feature)) %>%
-    mutate_all(~cut(., breaks = bins, labels = 1:nbin)) %>%
+    mutate_all(~cut(., breaks = get_bins(df, nbin, feature, minutes), labels = 1:nbin)) %>%
     data.matrix(rownames.force = TRUE)
 }
 
 construct_transition_matrix <- function (games, nbin = 20, time = 100) {
+  # TODO: check that!
   tm <- matrix(0, nbin, nbin)
   t <- rowSums(0 + !is.na(games))
 
@@ -28,13 +29,14 @@ construct_transition_matrix <- function (games, nbin = 20, time = 100) {
 }
 
 # tm = transition matrix, bm = bin matrix
-get_trajectory_probability <- function(bm, tm, t = 1, window = 5) {
+get_trajectory_probability <- function(bin_matrix, transition_matrix, t = 6, window = 5) {
   probs <- c()
-  for (i in 1:nrow(bm)) {
+  # browser()
+  for (i in 1:nrow(bin_matrix)) {
     prob <- 1
-    for (j in t:t + window - 1) {
-      # take the probability of moving from bm[]
-      current <- tm[bm[i, j], bm[i , j + 1]]
+    for (j in (t - window - 1):t) {
+      # take the probability of moving from bin_matrix[]
+      current <- transition_matrix[bin_matrix[i, j], bin_matrix[i , j + 1]]
       prob <- prob * ifelse(is.na(current), 1, current)
     }
     # I'm multiplying the probabilities
@@ -43,11 +45,14 @@ get_trajectory_probability <- function(bm, tm, t = 1, window = 5) {
   probs
 }
 
-acc <- function (test_set, tsbm, winners, losers, t) {
-  browser()
+get_mc_accuracy <- function (test_set, tsbm, winners, losers, t) {
   d_win <- get_trajectory_probability(tsbm, winners, t = t, window = 5)
-  d_los <- get_trajectory_probability(tsbm, losers, t = t, window = 5)
-  mean(0 + ((d_win > d_los) == as.logical(test_set$radiant_win)), na.rm = TRUE)
+  d_loss <- get_trajectory_probability(tsbm, losers, t = t, window = 5)
+
+  predicted <- d_win > d_loss
+  actual <- as.logical(test_set$radiant_win)
+
+  mean((predicted == actual), na.rm = TRUE)
 }
 
 mc_accuracy <- function (test_set, tsbm, winners, losers, t) {
