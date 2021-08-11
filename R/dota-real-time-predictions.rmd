@@ -206,17 +206,12 @@ g14 <- data.frame(
   bind_rows(mc_accuracies) %>%
   ggplot(mapping = aes(x = time, y = accuracy, color = model)) +
   geom_line() +
-  ggtitle("Точност по време на МВ и ЛР върху къси игри") +
+  ggtitle("Точност по време на МВ и ЛР") +
   xlab("Време") +
   ylab("Точност") +
   theme(legend.position = "bottom")
 
-ggsave(
-  "images/markov-chain-transition-probabilities-short.png",
-  g14,
-  width = 10,
-  height = 6
-)
+g14
 ```
 
 
@@ -226,7 +221,7 @@ g1 <- winners_tm %>%
   matrix_to_df() %>%
   ggplot(mapping = aes(row, col, fill = value)) +
     geom_tile() +
-    geom_text(aes(label = round(value, 1))) +
+    # geom_text(aes(label = round(value, 1))) +
     ggtitle("Емпирични Преходни Вероятности за Победителя") +
     xlab("До Клетка със Злато (j)") +
     ylab("От Клетка със Злато (i)")
@@ -236,7 +231,7 @@ g2 <- losers_tm %>%
   matrix_to_df() %>%
   ggplot(mapping = aes(row, col, fill = value)) + 
     geom_tile() +
-    geom_text(aes(label = round(value, 1))) +
+    # geom_text(aes(label = round(value, 1))) +
     ggtitle("Емпирични Преходни Вероятности за Губещия") +
     xlab("До Клетка със Злато (j)") +
     ylab("От Клетка със Злато (i)")
@@ -246,7 +241,7 @@ g1
 g2
 
 ggsave(
-  "images/markov-chain-transition-probabilities.png",
+  "images/markov-chain-transition-probabilities-60.png",
   g3,
   width = 10,
   height = 6
