@@ -12,6 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r package-setup, message=FALSE, warning=FALSE, include=FALSE, results='hide'}
 library("reticulate")
+require("xgboost")
 
 list.of.packages <- c(
   "Metrics",
@@ -25,7 +26,8 @@ list.of.packages <- c(
   "recipes",
   "purrr",
   "jsonlite",
-  "reticulate"
+  "reticulate",
+  "FactoRizationMachines"
 )
 
 new.packages <- list.of.packages[(
@@ -50,6 +52,7 @@ source("./prior-helpers.R")
 
 ### Loading the data
 We are using 4 main data sets
+
 * players - containing information about each match and each player in the 
 match, what hero did hey used, how much gold and kills they produced. We use
 this data frame for producing the played heroes data frame, i.e. a data frame 
@@ -81,6 +84,7 @@ hero_stats_df <- "./data/hero_stats.json" %>%
     starts_with("base"), ends_with("gain")
   )
 ```
+
 ## Feature Engineering
 
 ### Hero selection feature engineering
@@ -133,6 +137,7 @@ Having so little matches, producing a ratio of winning-losing for player
 playing a particular hero, we get NaNs almost for every account id.
 
 ```{r feature-engineering-heroes-winning-ratios}
+
 # TODO: this should be done only on a training set to prevent data leakage
 # TODO: do a join on the whole data frame
 # TODO: join with player ranks as well
@@ -156,6 +161,7 @@ team_heroes_df %>%
   )
 ```
 ```{r feature-engineering-heroes-winning-ratios}
+
 # we are not using those for now
 hero_combos <- team_heroes_df %>%
   group_by(match_id) %>%
@@ -181,6 +187,7 @@ for the jth player, again 0-5 being the amazing radiant team, and the 6-10 being
 the not so amazing dire team.
 
 ```{r feature-engineering-player-rankings}
+
 matches_player_rankings_df <- players_df %>%
   select(match_id, account_id) %>%
   left_join(player_ratings_df, by = "account_id") %>%
@@ -192,7 +199,9 @@ matches_player_rankings_df <- players_df %>%
     values_from = c(trueskill_mu, trueskill_sigma)
   )
 ```
+
 ### Data Preparation
+
 There are a lot of NaN values, some crazy big ones as well, 
 maybe used as a placeholder for something. We need to impute so that there 
 aren't any NaN or or wrong values  in order to fit a Logistic Regression or 

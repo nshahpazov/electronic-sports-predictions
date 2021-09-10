@@ -1,0 +1,51 @@
+---
+title: "knn-explorations"
+author: "Nikola Shahpazov"
+date: "8/12/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# libraries
+library(tidyverse)
+library(caret)
+
+source("./transformers/draftize.R")
+```
+
+
+```{r}
+players <- read.csv("./data/players.csv")
+matches <- read.csv("./data/match.csv", colClasses = c(radiant_win = "logical"))
+
+drafts <- players %>%
+  # get the actual draft
+  draftize() %>%
+  # add whether radiant won the match since it's the target variable
+  left_join(select(matches, match_id, radiant_win)) %>%
+  # turn it factor since caret would prefer it like that
+  mutate(radiant_win = as.factor(ifelse(radiant_win, 1, -1)))
+
+```
+
+
+```{r split-train-test-sets}
+train_idx <- createDataPartition(drafts$match_id, p = .9, list = FALSE)
+
+train_drafts <- drafts[train_idx, ]
+test_drafts <- drafts[-train_idx, ]
+
+train_drafts
+
+# 
+# write.csv(train_drafts, "./data/processed/train_draft_kgl.csv")
+# write.csv(test_drafts, "./data/processed/test_draft_kgl.csv")
+
+```
+
+```{r knn}
+
+```
+

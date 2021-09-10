@@ -8,8 +8,8 @@ import pickle
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 
-from dotenv import find_dotenv, load_dotenv
 import click
+from dotenv import find_dotenv, load_dotenv
 from sklearn.model_selection import train_test_split, cross_val_score, ShuffleSplit
 
 from sklearn.preprocessing import MinMaxScaler, StandardScaler, FunctionTransformer, OneHotEncoder
@@ -41,9 +41,10 @@ def main(input_train_set_path, output_model_path):
     X_train = train_df.drop(["radiant_win", "match_id", "start_time"], axis=1)
 
     # create model instance and train (Logistic Regression)
-    clf = LogisticRegression(max_iter=10000).fit(X_train, y_train)
+    logistic_regression = LogisticRegression(max_iter=10000)
+    classifier = logistic_regression.fit(X_train, y_train)
 
-    pickle.dump(clf, open(output_model_path, 'wb'))
+    pickle.dump(classifier, open(output_model_path, 'wb'))
 
 if __name__ == '__main__':
     main()

@@ -38,6 +38,15 @@ df <- tbl(yang_connection, "match") %>%
 df %>%
   group_by(data) %>%
   summarise(radiant_win_percentage = sum(radiant_win) / length(radiant_win))
+
+df %>%
+  filter(data == "Conley") %>%
+  .$radiant_win %>%
+  table() %>%
+  prop.table()
+
+test_5669.npz
+  
 ```
 
 
@@ -50,26 +59,31 @@ g1 <- df %>%
   ylab("Процент победи") +
   ggtitle("Yang")
 
-g2 <- df %>%
-  filter(data == "Conley") %>%
-  ggplot(aes(x = as.factor(radiant_win == 1))) +
-  geom_bar(
-    mapping = aes(y = (..count..) / sum(..count..)), fill = "orange") +
-  xlab("Радиант побеждава") +
-  ylab("Процент победи") +
-  ggtitle("Conley")
+# g2 <- df %>%
+#   filter(data == "Conley") %>%
+#   ggplot(aes(x = as.factor(radiant_win == 1))) +
+#   geom_bar(
+#     mapping = aes(y = (..count..) / sum(..count..)), fill = "orange") +
+#   xlab("Радиант побеждава") +
+#   ylab("Процент победи") +
+#   ggtitle("Conley")
+
+# correct percentage, taken from the test set used by conley in their source code
+conley_radiant_win <- 0.6023990121714589
+
+g1
+  
+g2 <- data.frame(radiant_win = c(1 - conley_radiant_win, conley_radiant_win)) %>%
+  ggplot(mapping = aes(x = c(FALSE, TRUE), y = radiant_win)) +
+  geom_bar(stat = "identity", fill = "orange")
+
 
 g3 <- grid.arrange(g2, g1, nrow = 1)
 g3
 
 ggsave("../images/conley-yang-comparison.png", g3, width = 10, height = 6)
-```
-
-```{r}
-
 
 ```
-
 
 #### Плътности на времетраенето на мачовете
 
