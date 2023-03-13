@@ -69,6 +69,7 @@ players involved. This one should probably be an important predictor for
 classification.
 
 ```{r loading-data}
+# this is kaggle data
 players_df <- read.csv("./data/players.csv")
 player_ratings_df <- read.csv("./data/player_ratings.csv")
 matches_df <- read.csv(
@@ -108,7 +109,7 @@ heroes_df <- players_df %>%
   group_by(match_id) %>%
   summarise(across(everything(), ~sum(.x, na.rm = TRUE)))
 ```
-### Hero Statistics feature engineering
+### Hero Statistics Feature Engineering
 
 We create a dataframe containing the hero statistics of each of the ten players
 for each game like mana generation, base health, strength, durability, etc.
@@ -187,7 +188,6 @@ for the jth player, again 0-5 being the amazing radiant team, and the 6-10 being
 the not so amazing dire team.
 
 ```{r feature-engineering-player-rankings}
-
 matches_player_rankings_df <- players_df %>%
   select(match_id, account_id) %>%
   left_join(player_ratings_df, by = "account_id") %>%

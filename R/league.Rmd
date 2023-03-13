@@ -1,0 +1,40 @@
+---
+title: "league of legends explorations"
+author: "Nikola Shahpazov"
+date: "10/09/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library("tidyverse")
+
+```
+
+```{r cars}
+league_df <- read.csv("./data/lol/LeagueofLegends.csv")
+champions_df <- read.csv("./data/lol/riot_champions.csv")
+
+league_df %>% dim
+
+```
+
+И тук имаме някакъв клас имбаланс
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+champions_df[league_df]
+league_df %>%
+  mutate(blueTopChamp = champions_df[champions_df$Name == blueTopChamp]$Id)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+```{r}
+
+
+```
+

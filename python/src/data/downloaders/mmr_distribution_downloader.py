@@ -1,12 +1,9 @@
 import aiohttp
-import asyncio
 from pymongo import MongoClient
 from multiprocessing import Pool
 import os
 from dotenv import find_dotenv, load_dotenv
 import logging
-import operator
-import numpy as np
 import sqlite3
 import json
 

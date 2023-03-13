@@ -1,0 +1,19 @@
+name: dota2_predictions
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10.4
+  - pandas
+  - numpy
+  - jupyterlab
+  - matplotlib
+  - plotnine
+  - scipy
+  - dotenv
+  - click
+  - pyyaml
+  - pip:
+    - python-dotenv
+    - sklearn
+    - pyarrow

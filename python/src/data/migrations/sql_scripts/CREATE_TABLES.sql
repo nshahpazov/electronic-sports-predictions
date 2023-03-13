@@ -55,6 +55,16 @@ CREATE TABLE player_match_rating (
   PRIMARY KEY (id)
 );
 
+CREATE TABLE player_match_rating_v2 (
+  id INTEGER NOT NULL,
+  time TEXT,
+  competitive_rank INTEGER,
+  solo_competitive_rank INTEGER,
+  account_id INTEGER,
+  match_id INTEGER,
+  PRIMARY KEY (id)
+);
+
 CREATE TABLE player_heroes_ranking (
   id INTEGER NOT NULL,
   card INTEGER,

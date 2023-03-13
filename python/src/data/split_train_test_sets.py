@@ -10,7 +10,7 @@ from jinja2 import Template
 load_dotenv(find_dotenv())
 
 # move those to the env file
-DEFAULT_TRAIN_SET_SIZE = 0.8
+DEFAULT_TRAIN_SET_SIZE = 0.9
 
 DEFAULT_TRAIN_SET_PATH = "datasets/interim/only_draft_train_set.parquet"
 DEFAULT_TEST_SET_PATH = "datasets/interim/only_draft_test_set.parquet"
@@ -22,7 +22,8 @@ DEFAULT_TEST_SET_PATH = "datasets/interim/only_draft_test_set.parquet"
 @click.option('--has_played_heroes', default=True)
 @click.option('--has_hero_characteristics', default=False)
 @click.option('--has_roles', default=False)
-@click.option('--limit', default=False)
+@click.option('--has_mmr_ratings', default=False)
+@click.option('--limit')
 def main(
     train_set_filepath,
     test_set_filepath,
@@ -30,6 +31,7 @@ def main(
     has_played_heroes,
     has_hero_characteristics,
     has_roles,
+    has_mmr_ratings,
     limit
 ):
     """ Runs data train, test split scripts to turn data into
@@ -39,24 +41,24 @@ def main(
     logger.info("creating train and test set data from raw data")
 
     con = sqlite3.connect(os.environ.get("SQLITE_DATABASE_URL"))
-    all_predictors_sql = open("src/data/pipeline/queries/predictors.sql").read()
+    all_predictors_template = open("src/data/pipeline/queries/predictors.sql").read()
 
-    rendered_sql = Template(all_predictors_sql).render(
+    all_predictors_sql = Template(all_predictors_template).render(
+    # rendered_sql = Template(played_heroes_sql).render(
         has_played_heroes=has_played_heroes,
         has_hero_characteristics=has_hero_characteristics,
         has_roles=has_roles,
-        limit=10,
-        mmr_ratings=True
+        limit=limit,
+        has_mmr_ratings=has_mmr_ratings
     )
 
-    df = pd.read_sql_query(rendered_sql, con)
+    df = pd.read_sql_query(all_predictors_sql, con)
 
     train_df, test_df = train_test_split(
         df,
         train_size=train_set_size,
-        test_size=0.2,
-        shuffle=False,
-        stratify=None
+        shuffle=True,
+        stratify=df['radiant_win']
     )
 
     train_df.to_parquet(train_set_filepath)

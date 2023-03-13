@@ -4,6 +4,12 @@ author: "Nikola Shahpazov"
 date: "12/3/2020"
 output: html_document
 ---
+```{r}
+install.packages("tidyverse")
+install.packages("caret")
+install.packages("gridExtra")
+install.packages("reshape2")
+```
 
 ```{r package-setup, message=FALSE, warning=FALSE, include=FALSE, results='hide'}
 library("tidyverse")

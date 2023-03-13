@@ -6,7 +6,6 @@ import os
 from dotenv import find_dotenv, load_dotenv
 from progress.bar import Bar
 import logging
-import operator
 import numpy as np
 
 load_dotenv(find_dotenv())

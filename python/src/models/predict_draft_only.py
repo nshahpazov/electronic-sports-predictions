@@ -1,7 +1,6 @@
 import pandas as pd
 import logging
 import pickle
-import pickle
 from dotenv import find_dotenv, load_dotenv
 import click
 

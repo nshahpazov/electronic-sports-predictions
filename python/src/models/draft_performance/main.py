@@ -88,3 +88,5 @@ clf = MLPClassifier(solver='lbfgs', alpha=1e-5, hidden_layer_sizes=(10,), random
 clf.fit(X_train, y_train)
 
 score = clf.score(X_test, y_test)
+
+# %%
